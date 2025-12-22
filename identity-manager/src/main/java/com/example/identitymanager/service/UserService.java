@@ -6,8 +6,10 @@ import com.example.identitymanager.model.Role;
 import com.example.identitymanager.model.User;
 import com.example.identitymanager.repository.RoleRepository;
 import com.example.identitymanager.repository.UserRepository;
+import com.example.identitymanager.exception.DuplicateResourceException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +32,7 @@ public class UserService {
     public UserDTO registerUser(UserRegistrationDTO registrationDTO) {
         // Check if email already exists
         if (userRepository.existsByEmail(registrationDTO.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new DuplicateResourceException("User", "email", registrationDTO.getEmail());
         }
 
         // Create new user entity
