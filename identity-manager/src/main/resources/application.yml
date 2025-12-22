@@ -18,7 +18,7 @@ spring:
   # JPA/Hibernate configuration
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
@@ -28,6 +28,8 @@ spring:
   sql:
     init:
       mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
 
   # Security - temporary disable for setup
   security:
@@ -45,3 +47,4 @@ logging:
     com.example.identitymanager: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.jdbc.datasource.init: DEBUG

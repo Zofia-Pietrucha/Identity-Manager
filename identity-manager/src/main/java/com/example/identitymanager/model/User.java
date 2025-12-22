@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @Data
@@ -62,4 +65,8 @@ public class User {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    // OneToMany relationship with SupportTicket
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<SupportTicket> tickets = new ArrayList<>();
 }
