@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: identity-manager
+
+  # H2 Database configuration
+  datasource:
+    url: jdbc:h2:mem:identitydb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # H2 Console (for database viewing)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # JPA/Hibernate configuration
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Data initialization
+  sql:
+    init:
+      mode: always
+
+  # Security - temporary disable for setup
+  security:
+    user:
+      name: admin
+      password: admin
+
+# Server configuration
+server:
+  port: 8080
+
+# Logging
+logging:
+  level:
+    com.example.identitymanager: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
