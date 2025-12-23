@@ -29,3 +29,7 @@ VALUES (2, 'Profile update issue', 'When I try to update my profile, I get an er
 
 INSERT INTO support_tickets (id, subject, description, status, user_id, created_at)
 VALUES (3, 'Privacy settings', 'How do I enable privacy settings?', 'RESOLVED', 3, CURRENT_TIMESTAMP);
+
+ALTER TABLE roles ALTER COLUMN id RESTART WITH 3;
+ALTER TABLE users ALTER COLUMN id RESTART WITH 4;
+ALTER TABLE support_tickets ALTER COLUMN id RESTART WITH 4;
