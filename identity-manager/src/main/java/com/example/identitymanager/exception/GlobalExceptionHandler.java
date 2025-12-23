@@ -1,4 +1,4 @@
-/*package com.example.identitymanager.exception;
+package com.example.identitymanager.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -106,4 +106,3 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
- */
