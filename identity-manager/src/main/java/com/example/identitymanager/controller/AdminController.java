@@ -258,7 +258,7 @@ public class AdminController {
                 user.setLastName(fields[2].trim());
                 user.setPhone(fields[3].trim().isEmpty() ? null : fields[3].trim());
                 user.setIsPrivacyEnabled(Boolean.parseBoolean(fields[4].trim()));
-                user.setPassword("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"); // default: password123
+                user.setPassword("password123");
 
                 users.add(user);
             }

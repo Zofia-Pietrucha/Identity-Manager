@@ -29,13 +29,13 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
-      data-locations: classpath:data.sql
+#      data-locations: classpath:data.sql
 
-  # Security - temporary disable for setup
-  security:
-    user:
-      name: admin
-      password: admin
+#  # Security - temporary disable for setup
+#  security:
+#    user:
+#      name: admin
+#      password: admin
 
   # Thymeleaf configuration
   thymeleaf:

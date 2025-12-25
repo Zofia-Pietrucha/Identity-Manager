@@ -9,7 +9,7 @@ import com.example.identitymanager.repository.UserRepository;
 import com.example.identitymanager.exception.DuplicateResourceException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,10 +22,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // Create new user
@@ -38,7 +40,7 @@ public class UserService {
         // Create new user entity
         User user = new User();
         user.setEmail(registrationDTO.getEmail());
-        user.setPassword(registrationDTO.getPassword()); // In real app, hash this!
+        user.setPassword(passwordEncoder.encode(registrationDTO.getPassword()));
         user.setFirstName(registrationDTO.getFirstName());
         user.setLastName(registrationDTO.getLastName());
         user.setPhone(registrationDTO.getPhone());
@@ -93,5 +95,11 @@ public class UserService {
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
+    }
+
+    // Create user WITHOUT encoding password (for data.sql imports with pre-hashed passwords)
+    @Transactional
+    public User createUserWithEncodedPassword(User user) {
+        return userRepository.save(user);
     }
 }
