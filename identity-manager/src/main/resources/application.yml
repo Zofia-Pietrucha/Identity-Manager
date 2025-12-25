@@ -37,6 +37,11 @@ spring:
       name: admin
       password: admin
 
+  # Thymeleaf configuration
+  thymeleaf:
+    check-template-location: true
+    cache: false
+
 # Server configuration
 server:
   port: 8080
