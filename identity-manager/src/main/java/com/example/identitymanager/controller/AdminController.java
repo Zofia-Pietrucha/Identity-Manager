@@ -18,6 +18,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.validation.Valid;
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+
 @Controller
 @RequestMapping("/admin/users")
 public class AdminController {
@@ -146,5 +153,117 @@ public class AdminController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/admin/users";
+    }
+
+
+    // GET /admin/users/import - Show import form
+    @GetMapping("/import")
+    public String showImportForm() {
+        return "admin/import-csv";
+    }
+
+    // POST /admin/users/import - Import users from CSV
+    @PostMapping("/import")
+    public String importUsers(@RequestParam("file") MultipartFile file,
+                              RedirectAttributes redirectAttributes) {
+
+        if (file.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Please select a CSV file to upload");
+            return "redirect:/admin/users/import";
+        }
+
+        try {
+            List<User> importedUsers = parseCsvFile(file);
+            int successCount = 0;
+            int errorCount = 0;
+
+            for (User user : importedUsers) {
+                try {
+                    // Check if email already exists
+                    if (!userRepository.existsByEmail(user.getEmail())) {
+                        // Assign default USER role
+                        Role userRole = roleRepository.findByName(Role.RoleName.USER)
+                                .orElseThrow(() -> new RuntimeException("USER role not found"));
+                        user.getRoles().add(userRole);
+
+                        userRepository.save(user);
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (Exception e) {
+                    errorCount++;
+                }
+            }
+
+            redirectAttributes.addFlashAttribute("success",
+                    String.format("Import completed: %d users added, %d skipped/errors", successCount, errorCount));
+            return "redirect:/admin/users";
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error parsing CSV file: " + e.getMessage());
+            return "redirect:/admin/users/import";
+        }
+    }
+
+    // GET /admin/users/export - Export users to CSV
+    @GetMapping("/export")
+    public void exportUsers(HttpServletResponse response) throws Exception {
+        response.setContentType("text/csv");
+        response.setHeader("Content-Disposition", "attachment; filename=\"users_export.csv\"");
+
+        List<User> users = userRepository.findAll();
+
+        try (PrintWriter writer = response.getWriter()) {
+            // CSV Header
+            writer.println("email,firstName,lastName,phone,isPrivacyEnabled");
+
+            // CSV Data
+            for (User user : users) {
+                writer.printf("%s,%s,%s,%s,%s%n",
+                        user.getEmail(),
+                        user.getFirstName(),
+                        user.getLastName(),
+                        user.getPhone() != null ? user.getPhone() : "",
+                        user.getIsPrivacyEnabled()
+                );
+            }
+        }
+    }
+
+    // Helper method to parse CSV file
+    private List<User> parseCsvFile(MultipartFile file) throws Exception {
+        List<User> users = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream()))) {
+
+            String line;
+            boolean firstLine = true;
+
+            while ((line = reader.readLine()) != null) {
+                if (firstLine) {
+                    firstLine = false;
+                    continue; // Skip header
+                }
+
+                String[] fields = line.split(",");
+                if (fields.length < 5) {
+                    continue; // Skip invalid lines
+                }
+
+                User user = new User();
+                user.setEmail(fields[0].trim());
+                user.setFirstName(fields[1].trim());
+                user.setLastName(fields[2].trim());
+                user.setPhone(fields[3].trim().isEmpty() ? null : fields[3].trim());
+                user.setIsPrivacyEnabled(Boolean.parseBoolean(fields[4].trim()));
+                user.setPassword("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"); // default: password123
+
+                users.add(user);
+            }
+        }
+
+        return users;
     }
 }

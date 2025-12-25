@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Users from CSV</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .navbar {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        input[type="file"]:hover {
+            border-color: #3498db;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 1rem;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        .instructions {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+        }
+
+        .instructions h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .instructions ul {
+            margin-left: 1.5rem;
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions code {
+            background-color: #e9ecef;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-actions {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>Identity Manager - Admin Panel</h1>
+</nav>
+
+<div class="container">
+    <div class="card">
+        <h2>Import Users from CSV</h2>
+
+        <!-- Error messages -->
+        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h3>CSV File Format</h3>
+            <p>Your CSV file must have the following columns (in this order):</p>
+            <ul>
+                <li><code>email</code> - User's email address (required, unique)</li>
+                <li><code>firstName</code> - User's first name (required)</li>
+                <li><code>lastName</code> - User's last name (required)</li>
+                <li><code>phone</code> - Phone number (optional, can be empty)</li>
+                <li><code>isPrivacyEnabled</code> - Privacy setting (true/false)</li>
+            </ul>
+
+            <h3 style="margin-top: 1rem;">Example CSV:</h3>
+            <pre style="background: white; padding: 1rem; border-radius: 4px; overflow-x: auto;">email,firstName,lastName,phone,isPrivacyEnabled
+newuser1@example.com,John,Smith,123456789,false
+newuser2@example.com,Jane,Doe,987654321,true
+newuser3@example.com,Bob,Johnson,,false</pre>
+
+            <div class="alert alert-info" style="margin-top: 1rem;">
+                <strong>Note:</strong> All imported users will have the default password: <code>password123</code>
+            </div>
+        </div>
+
+        <!-- Upload Form -->
+        <form action="/admin/users/import" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Select CSV File</label>
+                <input type="file"
+                       id="file"
+                       name="file"
+                       accept=".csv"
+                       required>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Upload and Import</button>
+                <a href="/admin/users" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
