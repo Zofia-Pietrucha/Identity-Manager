@@ -27,6 +27,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-resources/**").permitAll()
                         .requestMatchers("/webjars/**").permitAll()
                         .requestMatchers("/api/users").permitAll()
+                        .requestMatchers("/admin/**").permitAll()
                         .anyRequest().permitAll()  // TYMCZASOWO - wszystko otwarte
                 );
 
