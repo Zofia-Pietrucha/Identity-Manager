@@ -151,7 +151,17 @@
 </head>
 <body>
 <nav class="navbar">
-    <h1>Identity Manager - Admin Panel</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <h1>Identity Manager - Admin Panel</h1>
+        <div>
+            <a href="/swagger-ui/index.html" target="_blank" style="margin-right: 1rem;">API Docs</a>
+            <form action="/logout" method="post" style="display: inline;">
+                <button type="submit" style="background: #e74c3c; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.875rem;">
+                    Logout
+                </button>
+            </form>
+        </div>
+    </div>
 </nav>
 
 <div class="container">
@@ -186,6 +196,7 @@ newuser3@example.com,Bob,Johnson,,false</pre>
 
         <!-- Upload Form -->
         <form action="/admin/users/import" method="post" enctype="multipart/form-data">
+<!--            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>-->
             <div class="form-group">
                 <label for="file">Select CSV File</label>
                 <input type="file"

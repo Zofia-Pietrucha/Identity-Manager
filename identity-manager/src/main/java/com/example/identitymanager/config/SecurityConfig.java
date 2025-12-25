@@ -53,7 +53,10 @@ public class SecurityConfig {
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/**")
-                .csrf(AbstractHttpConfigurer::disable)  // Tymczasowo wyłączone dla uproszczenia
+//                .csrf(csrf -> csrf
+//                        .ignoringRequestMatchers("/h2-console/**")
+//                )  // CSRF enabled for forms, disabled only for H2
+                .csrf(AbstractHttpConfigurer::disable)  // Tymczasowo wyłączone
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
                 )
@@ -62,6 +65,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/api-docs/**").permitAll()
                         .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
+                        .requestMatchers("/403").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")  // TYLKO ADMIN!
                         .anyRequest().authenticated()
                 )
@@ -73,6 +77,9 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login?logout")
                         .permitAll()
+                )
+                .exceptionHandling(ex -> ex
+                        .accessDeniedPage("/403")
                 );
 
         return http.build();
