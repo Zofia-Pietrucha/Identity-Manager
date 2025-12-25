@@ -53,10 +53,9 @@ public class SecurityConfig {
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/**")
-//                .csrf(csrf -> csrf
-//                        .ignoringRequestMatchers("/h2-console/**")
-//                )  // CSRF enabled for forms, disabled only for H2
-                .csrf(AbstractHttpConfigurer::disable)  // Tymczasowo wyłączone
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/h2-console/**")
+                )
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
                 )

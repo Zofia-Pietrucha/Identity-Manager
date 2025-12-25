@@ -14,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -32,13 +33,16 @@ public class AdminController {
     private final UserService userService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public AdminController(UserService userService,
                            UserRepository userRepository,
-                           RoleRepository roleRepository) {
+                           RoleRepository roleRepository,
+                           PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // GET /admin/users - List all users
@@ -258,7 +262,7 @@ public class AdminController {
                 user.setLastName(fields[2].trim());
                 user.setPhone(fields[3].trim().isEmpty() ? null : fields[3].trim());
                 user.setIsPrivacyEnabled(Boolean.parseBoolean(fields[4].trim()));
-                user.setPassword("password123");
+                user.setPassword(passwordEncoder.encode("password123")); // Hash default password
 
                 users.add(user);
             }
