@@ -39,54 +39,45 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users").permitAll()  // Registration endpoint
                         .requestMatchers("/api/auth/login").permitAll()  // Login endpoint
-                        .requestMatchers("/api/me").authenticated()
-                        .requestMatchers("/api/me/privacy").authenticated()
+                        .requestMatchers("/api/auth/me").authenticated()
+                        .requestMatchers("/api/auth/me/privacy").authenticated()
                         .requestMatchers("/api/tickets/**").authenticated()
+                        .requestMatchers("/api/validation/**").permitAll()  // Validation test endpoint
+                        // REMOVED: /api/jdbc/** - fake endpoint deleted
                         .anyRequest().authenticated()
                 )
-                .httpBasic();
+                .httpBasic(httpBasic -> {});
 
         return http.build();
     }
 
-    // ŁAŃCUCH 2: Web MVC (Stateful - Form Login)
+    // ŁAŃCUCH 2: MVC / Przeglądarka (Stateful)
     @Bean
     @Order(2)
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/**")
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/h2-console/**")
-                )
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.disable())
-                )
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
-                        .requestMatchers("/403").permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")  // TYLKO ADMIN!
+                        .requestMatchers("/login", "/h2-console/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .permitAll()
                         .defaultSuccessUrl("/admin/users", true)
+                        .permitAll()
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login?logout")
                         .permitAll()
                 )
-                .exceptionHandling(ex -> ex
-                        .accessDeniedPage("/403")
-                );
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
 
         return http.build();
     }
 
-    // Authentication Provider
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -95,9 +86,8 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // Authentication Manager
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
     }
 }

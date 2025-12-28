@@ -5,6 +5,7 @@ import com.example.identitymanager.dto.UserRegistrationDTO;
 import com.example.identitymanager.model.Role;
 import com.example.identitymanager.model.User;
 import com.example.identitymanager.repository.RoleRepository;
+import com.example.identitymanager.repository.UserDao;
 import com.example.identitymanager.repository.UserRepository;
 import com.example.identitymanager.service.UserService;
 import com.opencsv.CSVReader;
@@ -37,15 +38,18 @@ public class AdminController {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserDao userDao;  // ADDED - JdbcTemplate DAO
 
     public AdminController(UserService userService,
                            UserRepository userRepository,
                            RoleRepository roleRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           UserDao userDao) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userDao = userDao;  // ADDED
     }
 
     // GET /admin/users - List all users with REAL pagination
@@ -55,7 +59,6 @@ public class AdminController {
             @RequestParam(defaultValue = "10") int size,
             Model model) {
 
-        // FIXED: Use Pageable instead of fake pagination
         Pageable pageable = PageRequest.of(page, size);
         Page<UserDTO> userPage = userService.getAllUsers(pageable);
 
@@ -157,7 +160,7 @@ public class AdminController {
         return "admin/import-csv";
     }
 
-    // POST /admin/users/import - Import users from CSV
+    // POST /admin/users/import - Import users from CSV using JDBC
     @PostMapping("/import")
     public String importUsers(@RequestParam("file") MultipartFile file,
                               RedirectAttributes redirectAttributes) {
@@ -172,19 +175,29 @@ public class AdminController {
             Role userRole = roleRepository.findByName(Role.RoleName.USER)
                     .orElseThrow(() -> new RuntimeException("USER role not found"));
 
+            int importedCount = 0;
+
+            // FIXED: Use JdbcTemplate for bulk insert instead of JPA
             for (User user : users) {
-                Set<Role> roles = new HashSet<>();
-                roles.add(userRole);
-                user.setRoles(roles);
-                userRepository.save(user);
+                // Insert user via JDBC
+                int rowsAffected = userDao.insertUser(user);
+
+                if (rowsAffected > 0 && user.getId() != null) {
+                    // Assign USER role via JPA (relation table)
+                    Set<Role> roles = new HashSet<>();
+                    roles.add(userRole);
+                    user.setRoles(roles);
+                    userRepository.save(user); // Only to update roles relation
+                    importedCount++;
+                }
             }
 
             redirectAttributes.addFlashAttribute("success",
-                    "Successfully imported " + users.size() + " users");
+                    "Successfully imported " + importedCount + " users via JdbcTemplate");
             return "redirect:/admin/users";
 
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Error parsing CSV file: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Error importing CSV: " + e.getMessage());
             return "redirect:/admin/users/import";
         }
     }
