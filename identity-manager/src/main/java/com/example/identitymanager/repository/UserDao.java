@@ -7,6 +7,7 @@ import java.util.Optional;
 
 public interface UserDao {
 
+    // SELECT operations
     List<User> findAllUsers();
 
     Optional<User> findUserById(Long id);
@@ -16,4 +17,13 @@ public interface UserDao {
     int countUsers();
 
     List<User> findUsersByPrivacyEnabled(boolean privacyEnabled);
+
+    // INSERT operation
+    int insertUser(User user);
+
+    // UPDATE operation
+    int updateUser(User user);
+
+    // DELETE operation
+    int deleteUserById(Long id);
 }
