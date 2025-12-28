@@ -6,6 +6,7 @@ import com.example.identitymanager.dto.UpdateTicketStatusRequest;
 import com.example.identitymanager.model.SupportTicket;
 import com.example.identitymanager.service.SupportTicketService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.identitymanager.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -153,5 +154,80 @@ class SupportTicketControllerTest {
                 .andExpect(jsonPath("$.errors.subject").exists());
 
         verify(ticketService, never()).createTicket(any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser
+    void shouldReturn404WhenTicketNotFound() throws Exception {
+        // Given
+        when(ticketService.getTicketById(999L))
+                .thenThrow(new ResourceNotFoundException("Ticket", "id", 999L));
+
+        // When & Then
+        mockMvc.perform(get("/api/tickets/999"))
+                .andExpect(status().isNotFound());
+
+        verify(ticketService).getTicketById(999L);
+    }
+
+    @Test
+    @WithMockUser
+    void shouldGetTicketsByUserId() throws Exception {
+        // Given
+        when(ticketService.getTicketsByUserId(1L))
+                .thenReturn(Arrays.asList(ticketDTO));
+
+        // When & Then
+        mockMvc.perform(get("/api/tickets/user/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].userId", is(1)));
+
+        verify(ticketService).getTicketsByUserId(1L);
+    }
+
+    @Test
+    @WithMockUser
+    void shouldReturnValidationErrorWhenDescriptionIsBlank() throws Exception {
+        // Given
+        CreateTicketRequest request = new CreateTicketRequest(1L, "Subject", "");
+
+        // When & Then
+        mockMvc.perform(post("/api/tickets")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.description").exists());
+
+        verify(ticketService, never()).createTicket(any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser
+    void shouldReturnValidationErrorWhenUserIdIsNull() throws Exception {
+        // Given
+        CreateTicketRequest request = new CreateTicketRequest(null, "Subject", "Desc");
+
+        // When & Then
+        mockMvc.perform(post("/api/tickets")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.userId").exists());
+
+        verify(ticketService, never()).createTicket(any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser
+    void shouldReturnBadRequestForInvalidStatus() throws Exception {
+        // Given
+        UpdateTicketStatusRequest request = new UpdateTicketStatusRequest("INVALID_STATUS");
+
+        // When & Then
+        mockMvc.perform(patch("/api/tickets/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 }

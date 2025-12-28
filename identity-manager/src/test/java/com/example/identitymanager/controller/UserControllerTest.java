@@ -174,4 +174,76 @@ class UserControllerTest {
 
         verify(userService).getUserByEmail("test@example.com");
     }
+
+
+    @Test
+    @WithMockUser
+    void shouldReturn404WhenUserNotFoundById() throws Exception {
+        // Given
+        when(userService.getUserById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        mockMvc.perform(get("/api/users/999"))
+                .andExpect(status().isNotFound());
+
+        verify(userService).getUserById(999L);
+    }
+
+    @Test
+    @WithMockUser
+    void shouldReturn404WhenUserNotFoundByEmail() throws Exception {
+        // Given
+        when(userService.getUserByEmail("notfound@test.com"))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        mockMvc.perform(get("/api/users/email/notfound@test.com"))
+                .andExpect(status().isNotFound());
+
+        verify(userService).getUserByEmail("notfound@test.com");
+    }
+
+    @Test
+    void shouldReturnValidationErrorWhenFirstNameIsBlank() throws Exception {
+        // Given
+        registrationDTO.setFirstName("");
+
+        // When & Then
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registrationDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.firstName").exists());
+
+        verify(userService, never()).registerUser(any());
+    }
+
+    @Test
+    void shouldReturnValidationErrorWhenLastNameIsBlank() throws Exception {
+        // Given
+        registrationDTO.setLastName("");
+
+        // When & Then
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registrationDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.lastName").exists());
+
+        verify(userService, never()).registerUser(any());
+    }
+
+    @Test
+    void shouldReturnValidationErrorWhenEmailIsBlank() throws Exception {
+        // Given
+        registrationDTO.setEmail("");
+
+        // When & Then
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registrationDTO)))
+                .andExpect(status().isBadRequest());
+
+        verify(userService, never()).registerUser(any());
+    }
 }
