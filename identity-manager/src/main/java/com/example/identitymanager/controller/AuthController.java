@@ -1,16 +1,18 @@
 package com.example.identitymanager.controller;
 
 import com.example.identitymanager.dto.UserDTO;
+import com.example.identitymanager.dto.UserUpdateDTO;
 import com.example.identitymanager.exception.ResourceNotFoundException;
 import com.example.identitymanager.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -39,5 +41,43 @@ public class AuthController {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         return ResponseEntity.ok(user);
+    }
+
+    // PUT /api/me - Update current user profile
+    @PutMapping("/me")
+    @Operation(summary = "Update current user", description = "Updates profile information of the currently authenticated user")
+    public ResponseEntity<UserDTO> updateCurrentUser(@Valid @RequestBody UserUpdateDTO updateDTO) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResourceNotFoundException("No authenticated user found");
+        }
+
+        String email = authentication.getName();
+        UserDTO updatedUser = userService.updateUserProfile(email, updateDTO);
+
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    // PATCH /api/me/privacy - Update privacy settings
+    @PatchMapping("/me/privacy")
+    @Operation(summary = "Update privacy settings", description = "Toggles privacy settings for the current user")
+    public ResponseEntity<UserDTO> updatePrivacySettings(@RequestBody Map<String, Boolean> request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResourceNotFoundException("No authenticated user found");
+        }
+
+        String email = authentication.getName();
+        Boolean isPrivacyEnabled = request.get("isPrivacyEnabled");
+
+        if (isPrivacyEnabled == null) {
+            throw new IllegalArgumentException("isPrivacyEnabled field is required");
+        }
+
+        UserDTO updatedUser = userService.updatePrivacySettings(email, isPrivacyEnabled);
+
+        return ResponseEntity.ok(updatedUser);
     }
 }

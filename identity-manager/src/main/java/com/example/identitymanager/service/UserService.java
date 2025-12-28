@@ -2,6 +2,8 @@ package com.example.identitymanager.service;
 
 import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.dto.UserRegistrationDTO;
+import com.example.identitymanager.dto.UserUpdateDTO;
+import com.example.identitymanager.exception.ResourceNotFoundException;
 import com.example.identitymanager.model.Role;
 import com.example.identitymanager.model.User;
 import com.example.identitymanager.repository.RoleRepository;
@@ -76,6 +78,30 @@ public class UserService {
     public Optional<UserDTO> getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .map(this::convertToDTO);
+    }
+
+    // Update user profile (firstName, lastName, phone)
+    public UserDTO updateUserProfile(String email, UserUpdateDTO updateDTO) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        user.setFirstName(updateDTO.getFirstName());
+        user.setLastName(updateDTO.getLastName());
+        user.setPhone(updateDTO.getPhone());
+
+        User updatedUser = userRepository.save(user);
+        return convertToDTO(updatedUser);
+    }
+
+    // Update privacy settings
+    public UserDTO updatePrivacySettings(String email, boolean isPrivacyEnabled) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        user.setIsPrivacyEnabled(isPrivacyEnabled);
+
+        User updatedUser = userRepository.save(user);
+        return convertToDTO(updatedUser);
     }
 
     // Convert User entity to DTO
