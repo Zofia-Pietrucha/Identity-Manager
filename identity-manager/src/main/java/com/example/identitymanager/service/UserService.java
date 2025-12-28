@@ -9,6 +9,8 @@ import com.example.identitymanager.model.User;
 import com.example.identitymanager.repository.RoleRepository;
 import com.example.identitymanager.repository.UserRepository;
 import com.example.identitymanager.exception.DuplicateResourceException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -58,10 +60,51 @@ public class UserService {
         return convertToDTO(savedUser);
     }
 
-    // Get all users
+    // Get all users (without pagination - for backward compatibility)
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers() {
         return userRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Get all users with pagination (NEW)
+    @Transactional(readOnly = true)
+    public Page<UserDTO> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(this::convertToDTO);
+    }
+
+    // Search users with pagination (NEW)
+    @Transactional(readOnly = true)
+    public Page<UserDTO> searchUsers(String keyword, Pageable pageable) {
+        return userRepository.searchUsers(keyword, pageable)
+                .map(this::convertToDTO);
+    }
+
+    // Get users by role (using custom @Query) - FIXED
+    @Transactional(readOnly = true)
+    public List<UserDTO> getUsersByRole(String roleNameStr) {
+        try {
+            Role.RoleName roleName = Role.RoleName.valueOf(roleNameStr.toUpperCase());
+            return userRepository.findUsersByRoleName(roleName).stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid role name: " + roleNameStr + ". Valid values are: USER, ADMIN");
+        }
+    }
+
+    // Get count of users with privacy enabled (using custom @Query)
+    @Transactional(readOnly = true)
+    public long countUsersWithPrivacyEnabled() {
+        return userRepository.countUsersWithPrivacyEnabled();
+    }
+
+    // Search users by name pattern (using custom @Query)
+    @Transactional(readOnly = true)
+    public List<UserDTO> searchUsersByName(String pattern) {
+        return userRepository.searchUsersByName(pattern).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }

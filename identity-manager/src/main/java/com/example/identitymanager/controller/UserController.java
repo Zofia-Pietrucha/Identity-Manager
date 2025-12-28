@@ -8,11 +8,17 @@ import com.example.identitymanager.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -33,12 +39,73 @@ public class UserController {
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
 
-    // GET /api/users - Get all users
+    // GET /api/users - Get all users (simple list - backward compatibility)
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves a list of all users")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         List<UserDTO> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
+    }
+
+    // GET /api/users/paginated - Get users with pagination (NEW)
+    @GetMapping("/paginated")
+    @Operation(summary = "Get users with pagination", description = "Retrieves users with pagination support")
+    public ResponseEntity<Map<String, Object>> getUsersPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction) {
+
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+
+        Page<UserDTO> userPage = userService.getAllUsers(pageable);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("users", userPage.getContent());
+        response.put("currentPage", userPage.getNumber());
+        response.put("totalItems", userPage.getTotalElements());
+        response.put("totalPages", userPage.getTotalPages());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // GET /api/users/search - Search users with pagination (NEW)
+    @GetMapping("/search")
+    @Operation(summary = "Search users", description = "Search users by keyword with pagination")
+    public ResponseEntity<Map<String, Object>> searchUsers(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UserDTO> userPage = userService.searchUsers(keyword, pageable);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("users", userPage.getContent());
+        response.put("currentPage", userPage.getNumber());
+        response.put("totalItems", userPage.getTotalElements());
+        response.put("totalPages", userPage.getTotalPages());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // GET /api/users/by-role/{roleName} - Get users by role (using custom @Query)
+    @GetMapping("/by-role/{roleName}")
+    @Operation(summary = "Get users by role", description = "Retrieves users with specific role")
+    public ResponseEntity<List<UserDTO>> getUsersByRole(@PathVariable String roleName) {
+        List<UserDTO> users = userService.getUsersByRole(roleName);
+        return ResponseEntity.ok(users);
+    }
+
+    // GET /api/users/stats/privacy - Get privacy statistics (using custom @Query)
+    @GetMapping("/stats/privacy")
+    @Operation(summary = "Get privacy statistics", description = "Returns count of users with privacy enabled")
+    public ResponseEntity<Map<String, Long>> getPrivacyStats() {
+        long count = userService.countUsersWithPrivacyEnabled();
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("usersWithPrivacyEnabled", count);
+        return ResponseEntity.ok(stats);
     }
 
     // GET /api/users/{id} - Get user by ID
