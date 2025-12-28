@@ -18,11 +18,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
-@Tag(name = "Authentication", description = "Authentication related endpoints")
+@RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "Authentication endpoints")
 public class AuthController {
 
     private final UserService userService;
@@ -33,9 +35,9 @@ public class AuthController {
         this.authenticationManager = authenticationManager;
     }
 
-    // POST /api/auth/login - Login endpoint
-    @PostMapping("/auth/login")
-    @Operation(summary = "Login", description = "Authenticates user and returns user information")
+    // POST /api/auth/login - Login endpoint returning token
+    @PostMapping("/login")
+    @Operation(summary = "User login", description = "Authenticates user and returns access token")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         try {
             // Authenticate user
@@ -46,13 +48,22 @@ public class AuthController {
                     )
             );
 
-            // Get user details
+            // Get user data
             UserDTO user = userService.getUserByEmail(loginRequest.getEmail())
                     .orElseThrow(() -> new ResourceNotFoundException("User", "email", loginRequest.getEmail()));
 
+            // Generate token (simple Base64 token for demonstration)
+            // In production, use JWT with proper signing
+            String tokenData = loginRequest.getEmail() + ":" + System.currentTimeMillis();
+            String accessToken = Base64.getEncoder().encodeToString(tokenData.getBytes(StandardCharsets.UTF_8));
+
+            // Create success response with token
             LoginResponse response = new LoginResponse(
                     "success",
                     "Login successful",
+                    accessToken,
+                    "Bearer",
+                    3600L,  // Token expires in 1 hour
                     user
             );
 
@@ -71,7 +82,6 @@ public class AuthController {
     @GetMapping("/me")
     @Operation(summary = "Get current user", description = "Returns information about the currently authenticated user")
     public ResponseEntity<UserDTO> getCurrentUser() {
-        // Get authentication from SecurityContext
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {

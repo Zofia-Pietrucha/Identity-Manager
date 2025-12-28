@@ -62,8 +62,8 @@ class AuthControllerSecurityTest {
 
         when(userService.getUserByEmail("john@example.com")).thenReturn(Optional.of(userDTO));
 
-        // When & Then
-        mockMvc.perform(get("/api/me"))
+        // When & Then - FIXED: zmieniono ścieżkę z /api/me na /api/auth/me
+        mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("john@example.com"))
                 .andExpect(jsonPath("$.firstName").value("John"))
@@ -74,7 +74,7 @@ class AuthControllerSecurityTest {
     @WithAnonymousUser
     void shouldReturn401WhenNotAuthenticatedForGetMe() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/me"))
+        mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -105,8 +105,8 @@ class AuthControllerSecurityTest {
                 }
                 """;
 
-        // When & Then
-        mockMvc.perform(put("/api/me")
+        // When & Then - FIXED: zmieniono ścieżkę z /api/me na /api/auth/me
+        mockMvc.perform(put("/api/auth/me")
                         .contentType("application/json")
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -127,7 +127,7 @@ class AuthControllerSecurityTest {
                 """;
 
         // When & Then
-        mockMvc.perform(put("/api/me")
+        mockMvc.perform(put("/api/auth/me")
                         .contentType("application/json")
                         .content(requestBody))
                 .andExpect(status().isUnauthorized());
@@ -159,7 +159,7 @@ class AuthControllerSecurityTest {
                 """;
 
         // When & Then
-        mockMvc.perform(patch("/api/me/privacy")
+        mockMvc.perform(patch("/api/auth/me/privacy")
                         .contentType("application/json")
                         .content(requestBody))
                 .andExpect(status().isOk())
