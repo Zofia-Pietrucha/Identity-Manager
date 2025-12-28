@@ -1,6 +1,6 @@
-# Identity Manager
+# Identity Manager - System Zarządzania Tożsamością
 
-System zarządzania użytkownikami z panelem administracyjnym i REST API.
+Aplikacja webowa do zarządzania użytkownikami z panelem administracyjnym, REST API i systemem zgłoszeń wsparcia technicznego.
 
 ## Technologie
 
@@ -8,110 +8,444 @@ System zarządzania użytkownikami z panelem administracyjnym i REST API.
 - Spring Boot 3.4.1
 - Spring Security 6.4.2
 - Spring Data JPA
-- H2 Database
+- H2 Database (in-memory)
 - Thymeleaf
+- OpenCSV
+- Swagger/OpenAPI 3.0
+- JUnit 5
+- Mockito
 - Maven
-- JUnit 5 + Mockito
-- JaCoCo
 
 ## Funkcjonalności
 
 ### Backend
-- Model danych (User, Role, SupportTicket)
-- Repository JPA + JdbcTemplate
-- Service layer z DTO
-- REST API
-- Walidacja danych
-- Obsługa wyjątków (GlobalExceptionHandler)
+
+**REST API**
+- Pełny CRUD dla użytkowników i zgłoszeń wsparcia
+- Autentykacja HTTP Basic i dedykowany endpoint logowania
+- Autoryzacja oparta na rolach (USER, ADMIN)
+- Walidacja danych wejściowych (Bean Validation)
+- Obsługa błędów z GlobalExceptionHandler
+- Paginacja wyników
+- Wyszukiwanie i filtrowanie
+
+**Dostęp do danych**
+- Spring Data JPA z custom queries (JPQL)
+- JdbcTemplate z implementacją CRUD
+- Interfejs UserDao demonstrujący różne podejścia do persystencji
+
+**Bezpieczeństwo**
+- Dual filter chain - osobna konfiguracja dla API i widoków MVC
+- Hashowanie haseł algorytmem BCrypt
+- Ochrona CSRF dla widoków HTML
+- Stateless API (SessionCreationPolicy.STATELESS)
 
 ### Frontend
-- Panel administratora (Thymeleaf)
-- CRUD użytkowników z paginacją
-- Import/Export CSV
-- Responsywny interfejs
 
-### Bezpieczeństwo
-- Spring Security (BCrypt)
-- Dual filter chain (API + MVC)
-- Role-based authorization (USER, ADMIN)
-- CSRF protection
+**Panel Administracyjny (Thymeleaf + Bootstrap 5)**
+- Zarządzanie użytkownikami (lista, dodawanie, edycja, usuwanie)
+- Paginacja manualna
+- Import użytkowników z plików CSV
+- Export użytkowników do CSV
+- Zarządzanie zgłoszeniami wsparcia
+- Zmiana statusu zgłoszeń
+- Flash messages dla feedbacku użytkownika
 
-### Testy
-- Repository tests (@DataJpaTest) - 12 testów
-- Service tests (Mockito) - 20 testów
-- Controller tests (MockMvc) - 19 testów
-- Pokrycie: 71% instructions, 79% lines
+## Endpointy API
 
-## Uruchomienie
+### Authentication
+
+```
+POST   /api/auth/login              Logowanie (zwraca dane użytkownika)
+GET    /api/me                      Pobierz dane zalogowanego użytkownika
+PUT    /api/me                      Aktualizuj profil
+PATCH  /api/me/privacy              Zmień ustawienia prywatności
+```
+
+### Users
+
+```
+POST   /api/users                   Rejestracja nowego użytkownika (publiczny)
+GET    /api/users                   Lista wszystkich użytkowników
+GET    /api/users/paginated         Lista z paginacją
+GET    /api/users/search            Wyszukiwanie użytkowników
+GET    /api/users/{id}              Pobierz użytkownika po ID
+GET    /api/users/email/{email}     Pobierz użytkownika po adresie email
+GET    /api/users/by-role/{role}    Filtruj użytkowników po roli
+GET    /api/users/stats/privacy     Statystyki ustawień prywatności
+PUT    /api/users/{id}              Aktualizuj dane użytkownika
+DELETE /api/users/{id}              Usuń użytkownika
+```
+
+### Support Tickets
+
+```
+GET    /api/tickets                 Lista wszystkich zgłoszeń
+POST   /api/tickets                 Utwórz nowe zgłoszenie
+GET    /api/tickets/{id}            Pobierz szczegóły zgłoszenia
+GET    /api/tickets/user/{userId}   Zgłoszenia konkretnego użytkownika
+PATCH  /api/tickets/{id}/status     Zmień status zgłoszenia
+```
+
+### JDBC Testing (demonstracja JdbcTemplate)
+
+```
+GET    /api/jdbc/users              SELECT via JDBC
+POST   /api/jdbc/users              INSERT via JDBC
+PUT    /api/jdbc/users/{id}         UPDATE via JDBC
+DELETE /api/jdbc/users/{id}         DELETE via JDBC
+GET    /api/jdbc/stats              COUNT via JDBC
+```
+
+### Validation Testing
+
+```
+POST   /api/validation/test         Test walidacji DTO
+```
+
+## Konfiguracja bezpieczeństwa
+
+### Dual Filter Chain
+
+Aplikacja wykorzystuje dwa niezależne łańcuchy filtrów:
+
+**1. API Filter Chain (`/api/**`)**
+- Tryb stateless (bez sesji)
+- Autentykacja HTTP Basic
+- Publiczne endpointy: `/api/users`, `/api/auth/login`
+- Pozostałe endpointy wymagają autentykacji
+
+**2. MVC Filter Chain (`/**`)**
+- Tryb stateful (sesje)
+- Logowanie przez formularz
+- Dostęp do `/admin/**` tylko dla użytkowników z rolą ADMIN
+- Publiczne: `/login`, `/h2-console`, `/swagger-ui/**`
+
+### Hasła
+
+Wszystkie hasła są hashowane przy użyciu BCrypt (strength 10).
+Domyślne hasło dla użytkowników testowych: `password123`
+
+## Baza danych
+
+### Konfiguracja H2
+
+H2 Console dostępna pod adresem: `http://localhost:8080/h2-console`
+
+```
+JDBC URL:  jdbc:h2:mem:identitydb
+Username:  sa
+Password:  (puste)
+```
+
+### Dane testowe
+
+Aplikacja automatycznie inicjalizuje bazę następującymi danymi:
+
+**Użytkownicy:**
+- admin@example.com / password123 (rola: ADMIN)
+- john@example.com / password123 (rola: USER)
+- jane@example.com / password123 (rola: USER)
+
+**Zgłoszenia wsparcia:**
+- 3 przykładowe zgłoszenia z różnymi statusami
+
+## Instalacja i uruchomienie
+
+### Wymagania
+
+- Java 21 lub nowsza
+- Maven 3.6+
+
+### Uruchomienie aplikacji
+
 ```bash
+git clone <repository-url>
+cd identity-manager
+
+mvn clean install
 mvn spring-boot:run
 ```
 
-## Dostęp
+Aplikacja będzie dostępna pod adresem: `http://localhost:8080`
 
-- Panel Admina: http://localhost:8080/admin/users
-- API Docs: http://localhost:8080/swagger-ui.html
-- H2 Console: http://localhost:8080/h2-console
+### Dostęp do interfejsów
 
-## Dane testowe
-
-Admin:
-- Email: admin@example.com
-- Hasło: password123
-
-User:
-- Email: john@example.com
-- Hasło: password123
+- Panel administracyjny: `http://localhost:8080/admin/users`
+- Dokumentacja API (Swagger UI): `http://localhost:8080/swagger-ui.html`
+- Konsola H2: `http://localhost:8080/h2-console`
 
 ## Testy
+
+### Uruchomienie wszystkich testów
+
 ```bash
-mvn clean test
+mvn test
 ```
 
-## Raport pokrycia
+### Uruchomienie testów konkretnej warstwy
+
+```bash
+mvn test -Dtest=*RepositoryTest
+mvn test -Dtest=*ServiceTest
+mvn test -Dtest=*ControllerTest
+```
+
+### Raport pokrycia kodu (JaCoCo)
+
 ```bash
 mvn jacoco:report
 ```
 
 Raport dostępny w: `target/site/jacoco/index.html`
 
-## Struktura
+### Pokrycie testów
+
+- Repository layer: testy integracyjne z `@DataJpaTest`
+- Service layer: testy jednostkowe z Mockito
+- Controller layer: testy z MockMvc
+- DTO/Model/Exception: testy jednostkowe
+
+## Struktura projektu
+
 ```
 src/main/java/com/example/identitymanager/
 ├── config/
+│   ├── SecurityConfig.java
+│   ├── PasswordConfig.java
+│   └── DataInitializer.java
 ├── controller/
+│   ├── AuthController.java
+│   ├── UserController.java
+│   ├── SupportTicketController.java
+│   ├── AdminController.java
+│   ├── AdminTicketController.java
+│   ├── JdbcTestController.java
+│   └── ValidationTestController.java
 ├── dto/
+│   ├── UserDTO.java
+│   ├── UserRegistrationDTO.java
+│   ├── UserUpdateDTO.java
+│   ├── LoginRequest.java
+│   ├── LoginResponse.java
+│   ├── SupportTicketDTO.java
+│   ├── CreateTicketRequest.java
+│   └── UpdateTicketStatusRequest.java
 ├── exception/
+│   ├── ResourceNotFoundException.java
+│   ├── DuplicateResourceException.java
+│   ├── ErrorResponse.java
+│   └── GlobalExceptionHandler.java
 ├── model/
+│   ├── User.java
+│   ├── Role.java
+│   └── SupportTicket.java
 ├── repository/
-└── service/
+│   ├── UserRepository.java
+│   ├── RoleRepository.java
+│   ├── SupportTicketRepository.java
+│   ├── UserDao.java
+│   └── JdbcUserDao.java
+├── service/
+│   ├── UserService.java
+│   ├── CustomUserDetailsService.java
+│   └── SupportTicketService.java
+└── IdentityManagerApplication.java
 
 src/main/resources/
-├── templates/
+├── templates/admin/
+│   ├── users-list.html
+│   ├── user-form.html
+│   ├── import-csv.html
+│   ├── tickets-list.html
+│   └── ticket-detail.html
 ├── application.yml
 └── schema.sql
+
+src/test/java/
+└── com/example/identitymanager/
+    ├── controller/
+    ├── service/
+    ├── repository/
+    └── dto/
 ```
 
-## API Endpoints
+## Kluczowe implementacje
 
-### Users
-- POST /api/users - Rejestracja
-- GET /api/users - Lista użytkowników
-- GET /api/users/{id} - Szczegóły użytkownika
-- GET /api/users/email/{email} - Użytkownik po email
+### Custom JPQL Query z Pageable
 
-### Authentication
-- GET /api/me - Aktualny użytkownik
+```java
+@Query("SELECT u FROM User u WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+Page<User> searchUsers(@Param("keyword") String keyword, Pageable pageable);
+```
 
-### Support Tickets
-- GET /api/tickets - Lista zgłoszeń
-- POST /api/tickets - Nowe zgłoszenie
-- GET /api/tickets/{id} - Szczegóły zgłoszenia
-- PATCH /api/tickets/{id}/status - Zmiana statusu
+### JdbcTemplate CRUD
 
-## Baza danych
+```java
+@Override
+public int insertUser(User user) {
+    String sql = "INSERT INTO users (email, password, first_name, last_name, phone, " +
+                 "is_privacy_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+    
+    jdbcTemplate.update(connection -> {
+        PreparedStatement ps = connection.prepareStatement(sql, new String[]{"id"});
+        ps.setString(1, user.getEmail());
+        // ... pozostałe parametry
+        return ps;
+    }, keyHolder);
+    
+    return rowsAffected;
+}
+```
 
-H2 Console:
-- URL: jdbc:h2:mem:identitydb
-- Username: sa
-- Password: (puste)
+### Bean Validation
+
+```java
+@NotBlank(message = "Email is required")
+@Email(message = "Email must be valid")
+private String email;
+
+@NotBlank(message = "Password is required")
+@Size(min = 8, message = "Password must be at least 8 characters")
+private String password;
+```
+
+### OpenCSV Import
+
+```java
+try (CSVReader csvReader = new CSVReader(new InputStreamReader(file.getInputStream()))) {
+    List<String[]> allRows = csvReader.readAll();
+    
+    for (int i = 1; i < allRows.size(); i++) {
+        String[] fields = allRows.get(i);
+        // przetwarzanie danych...
+    }
+}
+```
+
+### Global Exception Handler
+
+```java
+@ExceptionHandler(ResourceNotFoundException.class)
+public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
+    ErrorResponse error = new ErrorResponse(
+        LocalDateTime.now(),
+        HttpStatus.NOT_FOUND.value(),
+        "Not Found",
+        ex.getMessage()
+    );
+    return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+}
+```
+
+## Przykłady użycia API
+
+### Logowanie
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "password123"
+  }'
+```
+
+### Pobranie listy użytkowników
+
+```bash
+curl -u john@example.com:password123 \
+  http://localhost:8080/api/users
+```
+
+### Utworzenie zgłoszenia wsparcia
+
+```bash
+curl -u john@example.com:password123 \
+  -X POST http://localhost:8080/api/tickets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 2,
+    "subject": "Problem z aplikacją",
+    "description": "Szczegółowy opis problemu"
+  }'
+```
+
+### Aktualizacja profilu
+
+```bash
+curl -u john@example.com:password123 \
+  -X PUT http://localhost:8080/api/me \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Jonathan",
+    "lastName": "Smith",
+    "phone": "+48123456789"
+  }'
+```
+
+### Zmiana ustawień prywatności
+
+```bash
+curl -u john@example.com:password123 \
+  -X PATCH http://localhost:8080/api/me/privacy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isPrivacyEnabled": true
+  }'
+```
+
+## Import/Export CSV
+
+### Export użytkowników
+
+Przejdź do panelu administracyjnego i kliknij "Export to CSV" lub wykonaj request:
+
+```
+GET http://localhost:8080/admin/users/export
+```
+
+Zostanie pobrany plik `users_export.csv` z danymi wszystkich użytkowników.
+
+### Import użytkowników
+
+1. Przygotuj plik CSV w formacie:
+   ```
+   email,firstName,lastName,phone,isPrivacyEnabled
+   user@example.com,Jan,Kowalski,+48123456789,false
+   ```
+
+2. W panelu admina przejdź do `/admin/users/import`
+
+3. Wybierz plik i kliknij "Import"
+
+Użytkownicy zostaną dodani z domyślnym hasłem `password123`.
+
+## Dokumentacja API
+
+Pełna interaktywna dokumentacja API dostępna w Swagger UI:
+
+```
+http://localhost:8080/swagger-ui.html
+```
+
+Dokumentacja zawiera opisy wszystkich endpointów, parametrów, schematów DTO oraz możliwość testowania API bezpośrednio z przeglądarki.
+
+## Wymagania spełnione
+
+- Model danych z relacjami (User, Role, SupportTicket)
+- Repository JPA z custom queries
+- JdbcTemplate z pełną implementacją CRUD
+- Service layer z logiką biznesową
+- DTO pattern dla separacji warstw
+- REST API z walidacją
+- Global Exception Handler
+- Spring Security z BCrypt
+- Panel administracyjny (Thymeleaf)
+- Import/Export CSV (OpenCSV)
+- Paginacja (JPA Pageable)
+- Testy jednostkowe i integracyjne
+- Dokumentacja API (Swagger)
+
