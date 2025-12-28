@@ -2,8 +2,6 @@ package com.example.identitymanager.controller;
 
 import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.dto.UserRegistrationDTO;
-import com.example.identitymanager.exception.DuplicateResourceException;
-import com.example.identitymanager.exception.ResourceNotFoundException;
 import com.example.identitymanager.model.Role;
 import com.example.identitymanager.model.User;
 import com.example.identitymanager.repository.RoleRepository;
@@ -11,6 +9,9 @@ import com.example.identitymanager.repository.UserRepository;
 import com.example.identitymanager.service.UserService;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -24,8 +25,9 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 @Controller
 @RequestMapping("/admin/users")
@@ -46,25 +48,20 @@ public class AdminController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // GET /admin/users - List all users
+    // GET /admin/users - List all users with REAL pagination
     @GetMapping
     public String listUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Model model) {
 
-        List<UserDTO> allUsers = userService.getAllUsers();
+        // FIXED: Use Pageable instead of fake pagination
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UserDTO> userPage = userService.getAllUsers(pageable);
 
-        int totalUsers = allUsers.size();
-        int totalPages = (int) Math.ceil((double) totalUsers / size);
-        int startIndex = page * size;
-        int endIndex = Math.min(startIndex + size, totalUsers);
-
-        List<UserDTO> pageUsers = allUsers.subList(startIndex, endIndex);
-
-        model.addAttribute("users", pageUsers);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("users", userPage.getContent());
+        model.addAttribute("currentPage", userPage.getNumber());
+        model.addAttribute("totalPages", userPage.getTotalPages());
         model.addAttribute("pageSize", size);
 
         return "admin/users-list";
@@ -94,115 +91,96 @@ public class AdminController {
             userService.registerUser(userDTO);
             redirectAttributes.addFlashAttribute("success", "User created successfully!");
             return "redirect:/admin/users";
-        } catch (DuplicateResourceException e) {
-            model.addAttribute("error", e.getMessage());
+        } catch (Exception e) {
+            model.addAttribute("error", "Error creating user: " + e.getMessage());
             model.addAttribute("isEdit", false);
             return "admin/user-form";
         }
     }
 
-    // GET /admin/users/{id}/edit - Show edit form
-    @GetMapping("/{id}/edit")
+    // GET /admin/users/edit/{id} - Show edit form
+    @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
-        try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        UserDTO user = userService.getUserById(id).orElse(null);
 
-            model.addAttribute("user", user);
-            model.addAttribute("userId", id);
-            model.addAttribute("isEdit", true);
-            return "admin/user-form";
-        } catch (ResourceNotFoundException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        if (user == null) {
+            redirectAttributes.addFlashAttribute("error", "User not found");
             return "redirect:/admin/users";
         }
+
+        model.addAttribute("user", user);
+        model.addAttribute("isEdit", true);
+        return "admin/user-form";
     }
 
-    // POST /admin/users/{id}/edit - Update user
-    @PostMapping("/{id}/edit")
+    // POST /admin/users/update/{id} - Update user
+    @PostMapping("/update/{id}")
     public String updateUser(@PathVariable Long id,
-                             @ModelAttribute("user") User userUpdate,
+                             @ModelAttribute("user") UserDTO userDTO,
                              RedirectAttributes redirectAttributes,
                              Model model) {
         try {
-            User existingUser = userRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Update fields
-            existingUser.setFirstName(userUpdate.getFirstName());
-            existingUser.setLastName(userUpdate.getLastName());
-            existingUser.setPhone(userUpdate.getPhone());
-            existingUser.setIsPrivacyEnabled(userUpdate.getIsPrivacyEnabled());
+            user.setFirstName(userDTO.getFirstName());
+            user.setLastName(userDTO.getLastName());
+            user.setPhone(userDTO.getPhone());
+            user.setIsPrivacyEnabled(userDTO.getIsPrivacyEnabled());
 
-            // Don't update email or password here for security
-            userRepository.save(existingUser);
+            userRepository.save(user);
 
             redirectAttributes.addFlashAttribute("success", "User updated successfully!");
             return "redirect:/admin/users";
-        } catch (ResourceNotFoundException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/admin/users";
+        } catch (Exception e) {
+            model.addAttribute("error", "Error updating user: " + e.getMessage());
+            model.addAttribute("isEdit", true);
+            return "admin/user-form";
         }
     }
 
-    // GET /admin/users/{id}/delete - Delete user
-    @GetMapping("/{id}/delete")
+    // GET /admin/users/delete/{id} - Delete user
+    @GetMapping("/delete/{id}")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-
-            userRepository.delete(user);
+            userRepository.deleteById(id);
             redirectAttributes.addFlashAttribute("success", "User deleted successfully!");
-        } catch (ResourceNotFoundException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error deleting user: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
 
-
-    // GET /admin/users/import - Show import form
+    // GET /admin/users/import - Show CSV import form
     @GetMapping("/import")
     public String showImportForm() {
         return "admin/import-csv";
     }
 
-    // POST /admin/users/import - Import users from CSV using OpenCSV
+    // POST /admin/users/import - Import users from CSV
     @PostMapping("/import")
     public String importUsers(@RequestParam("file") MultipartFile file,
                               RedirectAttributes redirectAttributes) {
-
         if (file.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Please select a CSV file to upload");
+            redirectAttributes.addFlashAttribute("error", "Please select a CSV file");
             return "redirect:/admin/users/import";
         }
 
         try {
-            List<User> importedUsers = parseCsvFile(file);
-            int successCount = 0;
-            int errorCount = 0;
+            List<User> users = parseCsvFile(file);
 
-            for (User user : importedUsers) {
-                try {
-                    // Check if email already exists
-                    if (!userRepository.existsByEmail(user.getEmail())) {
-                        // Assign default USER role
-                        Role userRole = roleRepository.findByName(Role.RoleName.USER)
-                                .orElseThrow(() -> new RuntimeException("USER role not found"));
-                        user.getRoles().add(userRole);
+            Role userRole = roleRepository.findByName(Role.RoleName.USER)
+                    .orElseThrow(() -> new RuntimeException("USER role not found"));
 
-                        userRepository.save(user);
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (Exception e) {
-                    errorCount++;
-                }
+            for (User user : users) {
+                Set<Role> roles = new HashSet<>();
+                roles.add(userRole);
+                user.setRoles(roles);
+                userRepository.save(user);
             }
 
             redirectAttributes.addFlashAttribute("success",
-                    String.format("Import completed: %d users added, %d skipped/errors", successCount, errorCount));
+                    "Successfully imported " + users.size() + " users");
             return "redirect:/admin/users";
 
         } catch (Exception e) {
