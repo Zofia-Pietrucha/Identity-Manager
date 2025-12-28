@@ -9,6 +9,8 @@ import com.example.identitymanager.model.User;
 import com.example.identitymanager.repository.RoleRepository;
 import com.example.identitymanager.repository.UserRepository;
 import com.example.identitymanager.service.UserService;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -21,7 +23,6 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -166,7 +167,7 @@ public class AdminController {
         return "admin/import-csv";
     }
 
-    // POST /admin/users/import - Import users from CSV
+    // POST /admin/users/import - Import users from CSV using OpenCSV
     @PostMapping("/import")
     public String importUsers(@RequestParam("file") MultipartFile file,
                               RedirectAttributes redirectAttributes) {
@@ -210,7 +211,7 @@ public class AdminController {
         }
     }
 
-    // GET /admin/users/export - Export users to CSV
+    // GET /admin/users/export - Export users to CSV using OpenCSV
     @GetMapping("/export")
     public void exportUsers(HttpServletResponse response) throws Exception {
         response.setContentType("text/csv");
@@ -218,40 +219,38 @@ public class AdminController {
 
         List<User> users = userRepository.findAll();
 
-        try (PrintWriter writer = response.getWriter()) {
+        try (CSVWriter csvWriter = new CSVWriter(response.getWriter())) {
             // CSV Header
-            writer.println("email,firstName,lastName,phone,isPrivacyEnabled");
+            String[] header = {"email", "firstName", "lastName", "phone", "isPrivacyEnabled"};
+            csvWriter.writeNext(header);
 
             // CSV Data
             for (User user : users) {
-                writer.printf("%s,%s,%s,%s,%s%n",
+                String[] data = {
                         user.getEmail(),
                         user.getFirstName(),
                         user.getLastName(),
                         user.getPhone() != null ? user.getPhone() : "",
-                        user.getIsPrivacyEnabled()
-                );
+                        String.valueOf(user.getIsPrivacyEnabled())
+                };
+                csvWriter.writeNext(data);
             }
         }
     }
 
-    // Helper method to parse CSV file
+    // Helper method to parse CSV file using OpenCSV library
     private List<User> parseCsvFile(MultipartFile file) throws Exception {
         List<User> users = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(file.getInputStream()))) {
+        try (CSVReader csvReader = new CSVReader(new InputStreamReader(file.getInputStream()))) {
+            // Read all rows
+            List<String[]> allRows = csvReader.readAll();
 
-            String line;
-            boolean firstLine = true;
+            // Skip header row (first row)
+            for (int i = 1; i < allRows.size(); i++) {
+                String[] fields = allRows.get(i);
 
-            while ((line = reader.readLine()) != null) {
-                if (firstLine) {
-                    firstLine = false;
-                    continue; // Skip header
-                }
-
-                String[] fields = line.split(",");
+                // Validate row has minimum required fields
                 if (fields.length < 5) {
                     continue; // Skip invalid lines
                 }
