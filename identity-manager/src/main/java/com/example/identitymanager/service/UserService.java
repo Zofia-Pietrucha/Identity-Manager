@@ -80,7 +80,7 @@ public class UserService {
                 .map(this::convertToDTO);
     }
 
-    // Update user profile (firstName, lastName, phone)
+    // Update user profile (firstName, lastName, phone) - for /api/me
     public UserDTO updateUserProfile(String email, UserUpdateDTO updateDTO) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
@@ -91,6 +91,27 @@ public class UserService {
 
         User updatedUser = userRepository.save(user);
         return convertToDTO(updatedUser);
+    }
+
+    // Update user by ID - for /api/users/{id}
+    public UserDTO updateUser(Long id, UserUpdateDTO updateDTO) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        user.setFirstName(updateDTO.getFirstName());
+        user.setLastName(updateDTO.getLastName());
+        user.setPhone(updateDTO.getPhone());
+
+        User updatedUser = userRepository.save(user);
+        return convertToDTO(updatedUser);
+    }
+
+    // Delete user by ID
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        userRepository.delete(user);
     }
 
     // Update privacy settings

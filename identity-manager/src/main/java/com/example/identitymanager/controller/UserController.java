@@ -2,6 +2,7 @@ package com.example.identitymanager.controller;
 
 import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.dto.UserRegistrationDTO;
+import com.example.identitymanager.dto.UserUpdateDTO;
 import com.example.identitymanager.exception.ResourceNotFoundException;
 import com.example.identitymanager.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,5 +57,23 @@ public class UserController {
         UserDTO user = userService.getUserByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
         return ResponseEntity.ok(user);
+    }
+
+    // PUT /api/users/{id} - Update user
+    @PutMapping("/{id}")
+    @Operation(summary = "Update user", description = "Updates an existing user's information")
+    public ResponseEntity<UserDTO> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UserUpdateDTO updateDTO) {
+        UserDTO updatedUser = userService.updateUser(id, updateDTO);
+        return ResponseEntity.ok(updatedUser);
+    }
+
+    // DELETE /api/users/{id} - Delete user
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete user", description = "Deletes a user by their ID")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 }
