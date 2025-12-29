@@ -68,8 +68,11 @@ public class SecurityConfig {
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .defaultSuccessUrl("/admin/users", true)
+                        .defaultSuccessUrl("/", true)
                         .permitAll()
+                )
+                .exceptionHandling(ex -> ex
+                        .accessDeniedPage("/403")
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login?logout")

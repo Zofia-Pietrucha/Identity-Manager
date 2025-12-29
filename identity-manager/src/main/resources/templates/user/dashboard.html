@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .user-info {
+            background: #f7fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .info-row {
+            display: flex;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            font-weight: 600;
+            color: #4a5568;
+            width: 150px;
+        }
+
+        .value {
+            color: #2d3748;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .info-message {
+            background: #e6fffa;
+            border-left: 4px solid #38b2ac;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Welcome, <span th:text="${user.firstName}">User</span>!</h1>
+
+    <div class="info-message">
+        <strong>ℹ️ Note:</strong> This is a read-only view. To edit your profile, use the REST API at
+        <code>/api/auth/me</code>
+    </div>
+
+    <div class="user-info">
+        <h2 style="margin-bottom: 1rem; color: #2d3748;">Your Profile</h2>
+
+        <div class="info-row">
+            <span class="label">Email:</span>
+            <span class="value" th:text="${user.email}">user@example.com</span>
+        </div>
+
+        <div class="info-row">
+            <span class="label">First Name:</span>
+            <span class="value" th:text="${user.firstName}">John</span>
+        </div>
+
+        <div class="info-row">
+            <span class="label">Last Name:</span>
+            <span class="value" th:text="${user.lastName}">Doe</span>
+        </div>
+
+        <div class="info-row">
+            <span class="label">Phone:</span>
+            <span class="value" th:text="${user.phone}">123-456-789</span>
+        </div>
+
+        <div class="info-row">
+            <span class="label">Roles:</span>
+            <span class="value" th:text="${#strings.setJoin(user.roles, ', ')}">USER</span>
+        </div>
+
+        <div class="info-row">
+            <span class="label">Privacy Enabled:</span>
+            <span class="value" th:text="${user.isPrivacyEnabled} ? 'Yes' : 'No'">No</span>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="/swagger-ui/index.html" class="btn">API Documentation</a>
+        <form th:action="@{/logout}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-secondary">Logout</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
