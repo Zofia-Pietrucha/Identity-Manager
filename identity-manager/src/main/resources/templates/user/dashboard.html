@@ -70,6 +70,7 @@
             transition: background 0.2s;
             border: none;
             cursor: pointer;
+            font-size: 1rem;
         }
 
         .btn:hover {
@@ -98,19 +99,141 @@
             margin-bottom: 2rem;
             border-radius: 4px;
         }
+
+        /* Form styles */
+        .edit-form {
+            background: #f7fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .edit-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="tel"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .user-info.hidden {
+            display: none;
+        }
+
+        .success-message {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+
+        /* Toggle switch styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .checkbox-group label {
+            margin: 0 !important;
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>Welcome, <span th:text="${user.firstName}">User</span>!</h1>
 
-    <div class="info-message">
-        <strong>ℹ️ Note:</strong> This is a read-only view. To edit your profile, use the REST API at
-        <code>/api/auth/me</code>
+    <!-- Success message -->
+    <div class="success-message" th:if="${param.success}" style="display: block;">
+        ✅ Profile updated successfully!
     </div>
 
-    <div class="user-info">
-        <h2 style="margin-bottom: 1rem; color: #2d3748;">Your Profile</h2>
+    <div class="info-message">
+        <strong>ℹ️ Tip:</strong> You can edit your profile below or use the REST API at <code>/api/auth/me</code>
+    </div>
+
+    <!-- Read-only view -->
+    <div class="user-info" id="viewMode">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="color: #2d3748; margin: 0;">Your Profile</h2>
+            <button class="btn" onclick="toggleEdit()">Edit Profile</button>
+        </div>
 
         <div class="info-row">
             <span class="label">Email:</span>
@@ -143,6 +266,54 @@
         </div>
     </div>
 
+    <!-- Edit form -->
+    <div class="edit-form" id="editMode">
+        <h2 style="margin-bottom: 1rem; color: #2d3748;">Edit Your Profile</h2>
+
+        <form th:action="@{/user/profile/update}" method="post">
+            <div class="form-group">
+                <label>Email (cannot be changed)</label>
+                <input type="email" th:value="${user.email}" disabled style="background: #e2e8f0; cursor: not-allowed;">
+            </div>
+
+            <div class="form-group">
+                <label for="firstName">First Name *</label>
+                <input type="text" id="firstName" name="firstName" th:value="${user.firstName}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="lastName">Last Name *</label>
+                <input type="text" id="lastName" name="lastName" th:value="${user.lastName}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="tel" id="phone" name="phone" th:value="${user.phone}">
+            </div>
+
+            <!-- DODANO: Privacy Setting -->
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <label style="font-weight: 600; color: #4a5568;">Enable Privacy Mode</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox"
+                               name="isPrivacyEnabled"
+                               th:checked="${user.isPrivacyEnabled}">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <p style="color: #718096; font-size: 0.875rem; margin-top: 0.5rem;">
+                    When enabled, your profile information will be hidden from other users
+                </p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="toggleEdit()">Cancel</button>
+            </div>
+        </form>
+    </div>
+
     <div class="actions">
         <a href="/swagger-ui/index.html" class="btn">API Documentation</a>
         <form th:action="@{/logout}" method="post" style="display: inline;">
@@ -150,5 +321,15 @@
         </form>
     </div>
 </div>
+
+<script>
+    function toggleEdit() {
+        const viewMode = document.getElementById('viewMode');
+        const editMode = document.getElementById('editMode');
+
+        viewMode.classList.toggle('hidden');
+        editMode.classList.toggle('active');
+    }
+</script>
 </body>
 </html>
