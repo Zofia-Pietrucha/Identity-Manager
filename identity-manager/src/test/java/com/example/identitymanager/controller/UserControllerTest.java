@@ -5,6 +5,8 @@ import com.example.identitymanager.dto.UserRegistrationDTO;
 import com.example.identitymanager.exception.DuplicateResourceException;
 import com.example.identitymanager.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.identitymanager.service.FileStorageService;
+import com.example.identitymanager.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +44,12 @@ class UserControllerTest {
     @MockBean
     private UserService userService;
 
+    @MockBean
+    private FileStorageService fileStorageService;
+
+    @MockBean
+    private UserRepository userRepository;
+
     private UserDTO userDTO;
     private UserRegistrationDTO registrationDTO;
 
@@ -59,7 +67,9 @@ class UserControllerTest {
                 false,
                 roles,
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                null,
+                null
         );
 
         registrationDTO = new UserRegistrationDTO();

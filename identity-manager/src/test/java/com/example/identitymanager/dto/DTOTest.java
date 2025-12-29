@@ -19,7 +19,7 @@ class DTOTest {
 
         // When
         UserDTO dto = new UserDTO(1L, "test@test.com", "John", "Doe",
-                "123", true, roles, now, now);
+                "123", true, roles, now, now, null, null);
 
         // Then
         assertThat(dto.getId()).isEqualTo(1L);

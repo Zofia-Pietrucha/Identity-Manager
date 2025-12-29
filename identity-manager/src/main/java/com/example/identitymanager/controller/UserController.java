@@ -4,17 +4,24 @@ import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.dto.UserRegistrationDTO;
 import com.example.identitymanager.dto.UserUpdateDTO;
 import com.example.identitymanager.exception.ResourceNotFoundException;
+import com.example.identitymanager.model.User;
+import com.example.identitymanager.repository.UserRepository;
+import com.example.identitymanager.service.FileStorageService;
 import com.example.identitymanager.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -26,9 +33,15 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final FileStorageService fileStorageService;
+    private final UserRepository userRepository;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService,
+                          FileStorageService fileStorageService,
+                          UserRepository userRepository) {
         this.userService = userService;
+        this.fileStorageService = fileStorageService;
+        this.userRepository = userRepository;
     }
 
     // POST /api/users - Register new user
@@ -47,7 +60,7 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    // GET /api/users/paginated - Get users with pagination (NEW)
+    // GET /api/users/paginated - Get users with pagination
     @GetMapping("/paginated")
     @Operation(summary = "Get users with pagination", description = "Retrieves users with pagination support")
     public ResponseEntity<Map<String, Object>> getUsersPaginated(
@@ -56,7 +69,8 @@ public class UserController {
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String direction) {
 
-        Sort.Direction sortDirection = direction.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("desc") ?
+                Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
 
         Page<UserDTO> userPage = userService.getAllUsers(pageable);
@@ -70,7 +84,7 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/users/search - Search users with pagination (NEW)
+    // GET /api/users/search - Search users with pagination
     @GetMapping("/search")
     @Operation(summary = "Search users", description = "Search users by keyword with pagination")
     public ResponseEntity<Map<String, Object>> searchUsers(
@@ -142,5 +156,87 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ==================== AVATAR ENDPOINTS ====================
+
+    // POST /api/users/{id}/avatar - Upload avatar
+    @PostMapping("/{id}/avatar")
+    @Operation(summary = "Upload user avatar", description = "Upload an avatar image for a user")
+    public ResponseEntity<Map<String, String>> uploadAvatar(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("File is empty");
+        }
+
+        // Validate file type
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files are allowed");
+        }
+
+        // Get user
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        // Delete old avatar if exists
+        if (user.getAvatarFilename() != null) {
+            fileStorageService.deleteFile(user.getAvatarFilename());
+        }
+
+        // Store new file using Files.copy()
+        String filename = fileStorageService.storeFile(file);
+        user.setAvatarFilename(filename);
+        userRepository.save(user);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Avatar uploaded successfully");
+        response.put("filename", filename);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // GET /api/users/{id}/avatar - Download avatar
+    @GetMapping("/{id}/avatar")
+    @Operation(summary = "Download user avatar", description = "Download user's avatar image")
+    public ResponseEntity<Resource> downloadAvatar(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        if (user.getAvatarFilename() == null) {
+            throw new ResourceNotFoundException("Avatar not found for user with id: " + id);
+        }
+
+        // Load file as Resource (ResponseEntity<Resource> = ResponseEntity<byte[]> equivalent)
+        Resource resource = fileStorageService.loadFileAsResource(user.getAvatarFilename());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + user.getAvatarFilename() + "\"")
+                .body(resource);
+    }
+
+    // DELETE /api/users/{id}/avatar - Delete avatar
+    @DeleteMapping("/{id}/avatar")
+    @Operation(summary = "Delete user avatar", description = "Delete user's avatar image")
+    public ResponseEntity<Map<String, String>> deleteAvatar(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        if (user.getAvatarFilename() == null) {
+            throw new ResourceNotFoundException("Avatar not found for user with id: " + id);
+        }
+
+        fileStorageService.deleteFile(user.getAvatarFilename());
+        user.setAvatarFilename(null);
+        userRepository.save(user);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Avatar deleted successfully");
+
+        return ResponseEntity.ok(response);
     }
 }

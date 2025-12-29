@@ -21,4 +21,8 @@ public class UserDTO {
     private Set<String> roles;  // Just role names, not full Role objects
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // ADDED: Avatar fields
+    private String avatarFilename;  // Stored filename in database
+    private String avatarUrl;       // URL to display avatar (generated, not stored)
 }

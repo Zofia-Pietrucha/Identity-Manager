@@ -168,7 +168,7 @@ public class UserService {
         return convertToDTO(updatedUser);
     }
 
-    // Convert User entity to DTO
+    // Convert User entity to DTO (WITH AVATAR FIELDS)
     private UserDTO convertToDTO(User user) {
         Set<String> roleNames = user.getRoles().stream()
                 .map(role -> role.getName().name())
@@ -183,7 +183,9 @@ public class UserService {
                 user.getIsPrivacyEnabled(),
                 roleNames,
                 user.getCreatedAt(),
-                user.getUpdatedAt()
+                user.getUpdatedAt(),
+                user.getAvatarFilename(),  // ADDED: Avatar filename from database
+                null                        // ADDED: Avatar URL will be set dynamically in controller
         );
     }
 

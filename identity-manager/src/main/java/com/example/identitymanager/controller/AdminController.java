@@ -8,6 +8,7 @@ import com.example.identitymanager.repository.RoleRepository;
 import com.example.identitymanager.repository.UserDao;
 import com.example.identitymanager.repository.UserRepository;
 import com.example.identitymanager.service.UserService;
+import com.example.identitymanager.service.FileStorageService;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import org.springframework.data.domain.Page;
@@ -38,18 +39,21 @@ public class AdminController {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final UserDao userDao;  // ADDED - JdbcTemplate DAO
+    private final UserDao userDao;
+    private final FileStorageService fileStorageService;  // ADDED for avatar support
 
     public AdminController(UserService userService,
                            UserRepository userRepository,
                            RoleRepository roleRepository,
                            PasswordEncoder passwordEncoder,
-                           UserDao userDao) {
+                           UserDao userDao,
+                           FileStorageService fileStorageService) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        this.userDao = userDao;  // ADDED
+        this.userDao = userDao;
+        this.fileStorageService = fileStorageService;  // ADDED
     }
 
     // GET /admin/users - List all users with REAL pagination
@@ -61,6 +65,13 @@ public class AdminController {
 
         Pageable pageable = PageRequest.of(page, size);
         Page<UserDTO> userPage = userService.getAllUsers(pageable);
+
+        // ADDED: Add avatar URL to each user
+        userPage.getContent().forEach(user -> {
+            if (user.getAvatarFilename() != null) {
+                user.setAvatarUrl("/api/users/" + user.getId() + "/avatar");
+            }
+        });
 
         model.addAttribute("users", userPage.getContent());
         model.addAttribute("currentPage", userPage.getNumber());
@@ -78,10 +89,11 @@ public class AdminController {
         return "admin/user-form";
     }
 
-    // POST /admin/users - Create new user
+    // POST /admin/users - Create new user (WITH AVATAR SUPPORT)
     @PostMapping
     public String createUser(@Valid @ModelAttribute("user") UserRegistrationDTO userDTO,
                              BindingResult result,
+                             @RequestParam(value = "avatarFile", required = false) MultipartFile avatarFile,
                              RedirectAttributes redirectAttributes,
                              Model model) {
 
@@ -92,6 +104,29 @@ public class AdminController {
 
         try {
             userService.registerUser(userDTO);
+
+            // ADDED: Handle avatar upload
+            if (avatarFile != null && !avatarFile.isEmpty()) {
+                try {
+                    // Get the created user to update avatar
+                    User user = userRepository.findByEmail(userDTO.getEmail())
+                            .orElseThrow(() -> new RuntimeException("User not found after creation"));
+
+                    // Validate file type
+                    String contentType = avatarFile.getContentType();
+                    if (contentType == null || !contentType.startsWith("image/")) {
+                        throw new IllegalArgumentException("Only image files are allowed");
+                    }
+
+                    String filename = fileStorageService.storeFile(avatarFile);
+                    user.setAvatarFilename(filename);
+                    userRepository.save(user);
+                } catch (Exception e) {
+                    // Log but don't fail - user is already created
+                    System.err.println("Failed to upload avatar: " + e.getMessage());
+                }
+            }
+
             redirectAttributes.addFlashAttribute("success", "User created successfully!");
             return "redirect:/admin/users";
         } catch (Exception e) {
@@ -112,14 +147,16 @@ public class AdminController {
         }
 
         model.addAttribute("user", user);
+        model.addAttribute("userId", id);  // ADDED for avatar display
         model.addAttribute("isEdit", true);
         return "admin/user-form";
     }
 
-    // POST /admin/users/update/{id} - Update user
+    // POST /admin/users/update/{id} - Update user (WITH AVATAR SUPPORT)
     @PostMapping("/update/{id}")
     public String updateUser(@PathVariable Long id,
                              @ModelAttribute("user") UserDTO userDTO,
+                             @RequestParam(value = "avatarFile", required = false) MultipartFile avatarFile,
                              RedirectAttributes redirectAttributes,
                              Model model) {
         try {
@@ -131,6 +168,30 @@ public class AdminController {
             user.setPhone(userDTO.getPhone());
             user.setIsPrivacyEnabled(userDTO.getIsPrivacyEnabled());
 
+            // ADDED: Handle avatar upload
+            if (avatarFile != null && !avatarFile.isEmpty()) {
+                try {
+                    // Validate file type
+                    String contentType = avatarFile.getContentType();
+                    if (contentType == null || !contentType.startsWith("image/")) {
+                        throw new IllegalArgumentException("Only image files are allowed");
+                    }
+
+                    // Delete old avatar if exists
+                    if (user.getAvatarFilename() != null) {
+                        fileStorageService.deleteFile(user.getAvatarFilename());
+                    }
+
+                    String filename = fileStorageService.storeFile(avatarFile);
+                    user.setAvatarFilename(filename);
+                } catch (Exception e) {
+                    model.addAttribute("error", "Error uploading avatar: " + e.getMessage());
+                    model.addAttribute("isEdit", true);
+                    model.addAttribute("userId", id);
+                    return "admin/user-form";
+                }
+            }
+
             userRepository.save(user);
 
             redirectAttributes.addFlashAttribute("success", "User updated successfully!");
@@ -138,6 +199,7 @@ public class AdminController {
         } catch (Exception e) {
             model.addAttribute("error", "Error updating user: " + e.getMessage());
             model.addAttribute("isEdit", true);
+            model.addAttribute("userId", id);
             return "admin/user-form";
         }
     }
@@ -146,12 +208,45 @@ public class AdminController {
     @GetMapping("/delete/{id}")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
+            // ADDED: Delete avatar file if exists
+            User user = userRepository.findById(id).orElse(null);
+            if (user != null && user.getAvatarFilename() != null) {
+                try {
+                    fileStorageService.deleteFile(user.getAvatarFilename());
+                } catch (Exception e) {
+                    System.err.println("Failed to delete avatar file: " + e.getMessage());
+                }
+            }
+
             userRepository.deleteById(id);
             redirectAttributes.addFlashAttribute("success", "User deleted successfully!");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Error deleting user: " + e.getMessage());
         }
         return "redirect:/admin/users";
+    }
+
+    // ADDED: GET /admin/users/{id}/avatar/delete - Delete user avatar
+    @GetMapping("/{id}/avatar/delete")
+    public String deleteUserAvatar(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (user.getAvatarFilename() != null) {
+                fileStorageService.deleteFile(user.getAvatarFilename());
+                user.setAvatarFilename(null);
+                userRepository.save(user);
+                redirectAttributes.addFlashAttribute("success", "Avatar deleted successfully!");
+            } else {
+                redirectAttributes.addFlashAttribute("info", "User has no avatar");
+            }
+
+            return "redirect:/admin/users/edit/" + id;
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Error deleting avatar: " + e.getMessage());
+            return "redirect:/admin/users/edit/" + id;
+        }
     }
 
     // GET /admin/users/import - Show CSV import form

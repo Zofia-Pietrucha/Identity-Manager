@@ -156,6 +156,7 @@
         <div>
             <a href="/swagger-ui/index.html" target="_blank" style="margin-right: 1rem;">API Docs</a>
             <form action="/logout" method="post" style="display: inline;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <button type="submit" style="background: #e74c3c; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.875rem;">
                     Logout
                 </button>
@@ -196,7 +197,7 @@ newuser3@example.com,Bob,Johnson,,false</pre>
 
         <!-- Upload Form -->
         <form action="/admin/users/import" method="post" enctype="multipart/form-data">
-<!--            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>-->
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <div class="form-group">
                 <label for="file">Select CSV File</label>
                 <input type="file"

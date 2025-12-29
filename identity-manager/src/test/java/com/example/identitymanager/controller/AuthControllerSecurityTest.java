@@ -57,7 +57,9 @@ class AuthControllerSecurityTest {
                 false,
                 Set.of("USER"),
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                null,
+                null
         );
 
         when(userService.getUserByEmail("john@example.com")).thenReturn(Optional.of(userDTO));
@@ -91,7 +93,9 @@ class AuthControllerSecurityTest {
                 false,
                 Set.of("USER"),
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                null,
+                null
         );
 
         when(userService.updateUserProfile(anyString(), org.mockito.ArgumentMatchers.any()))
@@ -146,7 +150,9 @@ class AuthControllerSecurityTest {
                 true, // privacy enabled
                 Set.of("USER"),
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                null,
+                null
         );
 
         when(userService.updatePrivacySettings(anyString(), org.mockito.ArgumentMatchers.anyBoolean()))

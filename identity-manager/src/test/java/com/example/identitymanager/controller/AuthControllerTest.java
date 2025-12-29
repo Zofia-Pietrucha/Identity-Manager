@@ -61,7 +61,9 @@ class AuthControllerTest {
                 false,
                 roles,
                 LocalDateTime.now(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                null,
+                null
         );
     }
 

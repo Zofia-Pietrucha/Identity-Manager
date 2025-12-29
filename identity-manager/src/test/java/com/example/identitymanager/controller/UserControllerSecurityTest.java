@@ -2,6 +2,8 @@ package com.example.identitymanager.controller;
 
 import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.service.UserService;
+import com.example.identitymanager.service.FileStorageService;
+import com.example.identitymanager.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -33,6 +35,12 @@ class UserControllerSecurityTest {
     @MockBean
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
+    @MockBean
+    private FileStorageService fileStorageService;
+
+    @MockBean
+    private UserRepository userRepository;
+
     // REMOVED - this test fails because @WebMvcTest loads full security config
     // Registration is already tested in UserControllerTest (old tests)
 
@@ -40,8 +48,8 @@ class UserControllerSecurityTest {
     @WithMockUser(username = "admin@example.com", roles = {"ADMIN"})
     void shouldGetAllUsersWhenAuthenticatedAsAdmin() throws Exception {
         // Given
-        UserDTO user1 = new UserDTO(1L, "admin@example.com", "Admin", "User", null, false, Set.of("ADMIN"), LocalDateTime.now(), LocalDateTime.now());
-        UserDTO user2 = new UserDTO(2L, "john@example.com", "John", "Doe", null, false, Set.of("USER"), LocalDateTime.now(), LocalDateTime.now());
+        UserDTO user1 = new UserDTO(1L, "admin@example.com", "Admin", "User", null, false, Set.of("ADMIN"), LocalDateTime.now(), LocalDateTime.now(), null, null);
+        UserDTO user2 = new UserDTO(2L, "john@example.com", "John", "Doe", null, false, Set.of("USER"), LocalDateTime.now(), LocalDateTime.now(), null, null);
 
         when(userService.getAllUsers()).thenReturn(List.of(user1, user2));
 
@@ -56,7 +64,7 @@ class UserControllerSecurityTest {
     @WithMockUser(username = "john@example.com", roles = {"USER"})
     void shouldGetAllUsersWhenAuthenticatedAsUser() throws Exception {
         // Given
-        UserDTO user1 = new UserDTO(1L, "admin@example.com", "Admin", "User", null, false, Set.of("ADMIN"), LocalDateTime.now(), LocalDateTime.now());
+        UserDTO user1 = new UserDTO(1L, "admin@example.com", "Admin", "User", null, false, Set.of("ADMIN"), LocalDateTime.now(), LocalDateTime.now(), null, null);
 
         when(userService.getAllUsers()).thenReturn(List.of(user1));
 

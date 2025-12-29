@@ -30,7 +30,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 2rem auto;
             padding: 0 1rem;
         }
@@ -181,6 +181,48 @@
             background-color: #3498db;
             color: white;
         }
+
+        /* AVATAR STYLES */
+        .avatar-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar-container {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #3498db;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .avatar-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-initials {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -192,6 +234,7 @@
             <a href="/admin/tickets" style="margin-right: 1rem; color: white; background: #27ae60; padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none;">Support Tickets</a>
             <a href="/swagger-ui/index.html" target="_blank" style="margin-right: 1rem; color: white;">API Docs</a>
             <form action="/logout" method="post" style="display: inline;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <button type="submit" style="background: #e74c3c; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.875rem;">
                     Logout
                 </button>
@@ -221,6 +264,7 @@
         <table th:unless="${#lists.isEmpty(users)}">
             <thead>
             <tr>
+                <th>Avatar</th>
                 <th>ID</th>
                 <th>Email</th>
                 <th>Name</th>
@@ -232,6 +276,19 @@
             </thead>
             <tbody>
             <tr th:each="user : ${users}">
+                <!-- AVATAR COLUMN -->
+                <td class="avatar-cell">
+                    <!-- Show avatar image if exists -->
+                    <div th:if="${user.avatarUrl}" class="avatar-container">
+                        <img th:src="${user.avatarUrl}"
+                             th:alt="${user.firstName + ' ' + user.lastName}"
+                             onerror="this.parentElement.innerHTML='<div class=\'avatar-initials\'>' + this.alt.split(' ').map(n => n[0]).join('') + '</div>'">
+                    </div>
+                    <!-- Show initials if no avatar -->
+                    <div th:unless="${user.avatarUrl}" class="avatar-initials">
+                        <span th:text="${user.firstName.substring(0,1) + user.lastName.substring(0,1)}">JD</span>
+                    </div>
+                </td>
                 <td th:text="${user.id}">1</td>
                 <td th:text="${user.email}">email@example.com</td>
                 <td th:text="${user.firstName + ' ' + user.lastName}">John Doe</td>

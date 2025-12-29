@@ -19,6 +19,7 @@ CREATE TABLE users (
                        last_name VARCHAR(50) NOT NULL,
                        phone VARCHAR(20),
                        is_privacy_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                       avatar_filename VARCHAR(255),
                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

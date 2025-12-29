@@ -43,7 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/me/privacy").authenticated()
                         .requestMatchers("/api/tickets/**").authenticated()
                         .requestMatchers("/api/validation/**").permitAll()  // Validation test endpoint
-                        // REMOVED: /api/jdbc/** - fake endpoint deleted
+                        .requestMatchers("/api/users/*/avatar").permitAll()  // ADDED: Allow public access to avatars for display
                         .anyRequest().authenticated()
                 )
                 .httpBasic(httpBasic -> {});
@@ -56,7 +56,9 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                // CSRF WŁĄCZONY dla formularzy HTML, z wyjątkiem H2 Console
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/h2-console/**"))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
