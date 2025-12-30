@@ -86,6 +86,15 @@
             background: #cbd5e0;
         }
 
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
         .actions {
             display: flex;
             gap: 1rem;
@@ -213,6 +222,136 @@
         .checkbox-group label {
             margin: 0 !important;
         }
+
+        /* Avatar styles */
+        .avatar-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 2px solid #e2e8f0;
+        }
+
+        /* ZMIENIONO: Avatar section tylko w trybie edycji */
+        .avatar-section-edit {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 2px solid #667eea;
+        }
+
+        .avatar-display {
+            flex-shrink: 0;
+        }
+
+        .avatar-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+        }
+
+        .avatar-placeholder {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            border: 3px solid #667eea;
+        }
+
+        /* DODANO: Mały avatar w read-only mode */
+        .avatar-small {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #667eea;
+            margin-right: 1rem;
+        }
+
+        .avatar-placeholder-small {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: 2px solid #667eea;
+            margin-right: 1rem;
+        }
+
+        .avatar-info {
+            flex-grow: 1;
+        }
+
+        .avatar-info h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .avatar-info p {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .avatar-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .avatar-preview {
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .avatar-preview.active {
+            display: block;
+        }
+
+        .avatar-preview img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -233,6 +372,19 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <h2 style="color: #2d3748; margin: 0;">Your Profile</h2>
             <button class="btn" onclick="toggleEdit()">Edit Profile</button>
+        </div>
+
+        <!-- DODANO: Mały avatar w read-only -->
+        <div class="profile-header">
+            <img th:if="${user.avatarUrl != null}"
+                 th:src="${user.avatarUrl}"
+                 alt="Avatar"
+                 class="avatar-small">
+            <div th:if="${user.avatarUrl == null}"
+                 class="avatar-placeholder-small"
+                 th:text="${user.firstName != null ? user.firstName.substring(0,1).toUpperCase() + user.lastName.substring(0,1).toUpperCase() : 'U'}">
+                JD
+            </div>
         </div>
 
         <div class="info-row">
@@ -270,7 +422,48 @@
     <div class="edit-form" id="editMode">
         <h2 style="margin-bottom: 1rem; color: #2d3748;">Edit Your Profile</h2>
 
-        <form th:action="@{/user/profile/update}" method="post">
+        <!-- PRZENIESIONO: Avatar Section tylko w trybie edycji -->
+        <div class="avatar-section-edit">
+            <div class="avatar-display">
+                <img th:if="${user.avatarUrl != null}"
+                     th:src="${user.avatarUrl}"
+                     alt="Avatar"
+                     class="avatar-img"
+                     id="currentAvatar">
+                <div th:if="${user.avatarUrl == null}"
+                     class="avatar-placeholder"
+                     id="currentAvatarPlaceholder"
+                     th:text="${user.firstName != null ? user.firstName.substring(0,1).toUpperCase() + user.lastName.substring(0,1).toUpperCase() : 'U'}">
+                    JD
+                </div>
+            </div>
+            <div class="avatar-info">
+                <h3>Profile Picture</h3>
+                <p>Upload a photo or remove your current picture</p>
+                <div class="avatar-actions">
+                    <div class="file-input-wrapper">
+                        <label for="avatarUpload" class="btn" style="margin: 0;">Upload Photo</label>
+                        <input type="file"
+                               id="avatarUpload"
+                               accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                               onchange="handleAvatarUpload(event)">
+                    </div>
+                    <form th:if="${user.avatarFilename != null}"
+                          th:action="@{/user/avatar/delete}"
+                          method="post"
+                          style="display: inline;"
+                          onsubmit="return confirm('Are you sure you want to delete your avatar?');">
+                        <button type="submit" class="btn btn-danger">Remove Photo</button>
+                    </form>
+                </div>
+                <div id="avatarPreview" class="avatar-preview">
+                    <p style="margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">Preview:</p>
+                    <img id="previewImage" src="" alt="Preview">
+                </div>
+            </div>
+        </div>
+
+        <form th:action="@{/user/profile/update}" method="post" enctype="multipart/form-data" id="profileForm">
             <div class="form-group">
                 <label>Email (cannot be changed)</label>
                 <input type="email" th:value="${user.email}" disabled style="background: #e2e8f0; cursor: not-allowed;">
@@ -291,7 +484,6 @@
                 <input type="tel" id="phone" name="phone" th:value="${user.phone}">
             </div>
 
-            <!-- DODANO: Privacy Setting -->
             <div class="form-group">
                 <div class="checkbox-group">
                     <label style="font-weight: 600; color: #4a5568;">Enable Privacy Mode</label>
@@ -306,6 +498,9 @@
                     When enabled, your profile information will be hidden from other users
                 </p>
             </div>
+
+            <!-- Hidden file input for form submission -->
+            <input type="file" id="avatarFileInput" name="avatar" style="display: none;" accept="image/*">
 
             <div class="form-actions">
                 <button type="submit" class="btn">Save Changes</button>
@@ -329,6 +524,46 @@
 
         viewMode.classList.toggle('hidden');
         editMode.classList.toggle('active');
+
+        // Reset preview when canceling
+        if (!editMode.classList.contains('active')) {
+            document.getElementById('avatarPreview').classList.remove('active');
+            document.getElementById('avatarUpload').value = '';
+            document.getElementById('avatarFileInput').value = '';
+        }
+    }
+
+    function handleAvatarUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('Please select a valid image file (JPG, PNG, GIF, or WEBP)');
+            event.target.value = '';
+            return;
+        }
+
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB');
+            event.target.value = '';
+            return;
+        }
+
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImage').src = e.target.result;
+            document.getElementById('avatarPreview').classList.add('active');
+        };
+        reader.readAsDataURL(file);
+
+        // Copy file to hidden input in form
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        document.getElementById('avatarFileInput').files = dataTransfer.files;
     }
 </script>
 </body>

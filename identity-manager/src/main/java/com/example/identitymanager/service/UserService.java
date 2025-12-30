@@ -168,6 +168,14 @@ public class UserService {
         return convertToDTO(updatedUser);
     }
 
+    public void updateUserAvatar(String email, String avatarFilename) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        user.setAvatarFilename(avatarFilename);
+        userRepository.save(user);
+    }
+
     // Convert User entity to DTO (WITH AVATAR FIELDS)
     private UserDTO convertToDTO(User user) {
         Set<String> roleNames = user.getRoles().stream()
