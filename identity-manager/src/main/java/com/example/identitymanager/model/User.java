@@ -48,7 +48,7 @@ public class User {
     )
     private Set<Role> roles = new HashSet<>();
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private Set<SupportTicket> tickets = new HashSet<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)

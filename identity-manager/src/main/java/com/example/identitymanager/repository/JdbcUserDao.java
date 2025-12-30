@@ -121,6 +121,11 @@ public class JdbcUserDao implements UserDao {
         return jdbcTemplate.update(deleteUserSql, id);
     }
 
+    @Override
+    public void executeUpdate(String sql, Object... params) {
+        jdbcTemplate.update(sql, params);
+    }
+
     // ==================== ROW MAPPER ====================
 
     private static class UserRowMapper implements RowMapper<User> {

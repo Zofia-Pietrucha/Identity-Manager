@@ -20,6 +20,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -208,20 +209,35 @@ public class AdminController {
     @GetMapping("/delete/{id}")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            // ADDED: Delete avatar file if exists
-            User user = userRepository.findById(id).orElse(null);
-            if (user != null && user.getAvatarFilename() != null) {
+            // Pobierz avatar filename
+            String avatarFilename = userRepository.findById(id)
+                    .map(User::getAvatarFilename)
+                    .orElse(null);
+
+            // Usuń avatar file
+            if (avatarFilename != null) {
                 try {
-                    fileStorageService.deleteFile(user.getAvatarFilename());
-                } catch (Exception e) {
-                    System.err.println("Failed to delete avatar file: " + e.getMessage());
+                    fileStorageService.deleteFile(avatarFilename);
+                } catch (Exception ex) {
+                    // Ignore - file might not exist
                 }
             }
 
-            userRepository.deleteById(id);
+            // RĘCZNIE usuń tickety PRZEZ JDBC
+            userDao.executeUpdate("DELETE FROM support_tickets WHERE user_id = ?", id);
+
+            // RĘCZNIE usuń role
+            userDao.executeUpdate("DELETE FROM user_roles WHERE user_id = ?", id);
+
+            // Usuń użytkownika
+            userDao.executeUpdate("DELETE FROM users WHERE id = ?", id);
+
             redirectAttributes.addFlashAttribute("success", "User deleted successfully!");
+
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Error deleting user: " + e.getMessage());
+            e.printStackTrace();
+            redirectAttributes.addFlashAttribute("error",
+                    "Error: " + (e.getMessage() != null ? e.getMessage() : "Unknown error"));
         }
         return "redirect:/admin/users";
     }

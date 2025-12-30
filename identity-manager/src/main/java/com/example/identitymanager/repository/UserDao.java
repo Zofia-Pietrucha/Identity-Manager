@@ -21,6 +21,8 @@ public interface UserDao {
     // INSERT operation
     int insertUser(User user);
 
+    void executeUpdate(String sql, Object... params);
+
     // UPDATE operation
     int updateUser(User user);
 
