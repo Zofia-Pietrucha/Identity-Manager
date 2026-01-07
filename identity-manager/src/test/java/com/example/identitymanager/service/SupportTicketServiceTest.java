@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,6 +56,8 @@ class SupportTicketServiceTest {
         testTicket.setCreatedAt(LocalDateTime.now());
     }
 
+    // ==================== GET ALL TICKETS TESTS ====================
+
     @Test
     void shouldGetAllTickets() {
         // Given
@@ -68,6 +71,43 @@ class SupportTicketServiceTest {
         assertThat(result.get(0).getSubject()).isEqualTo("Test Issue");
         verify(ticketRepository).findAll();
     }
+
+    @Test
+    void shouldReturnEmptyListWhenNoTickets() {
+        // Given
+        when(ticketRepository.findAll()).thenReturn(Collections.emptyList());
+
+        // When
+        List<SupportTicketDTO> result = ticketService.getAllTickets();
+
+        // Then
+        assertThat(result).isEmpty();
+        verify(ticketRepository).findAll();
+    }
+
+    @Test
+    void shouldGetMultipleTickets() {
+        // Given
+        SupportTicket ticket2 = new SupportTicket();
+        ticket2.setId(2L);
+        ticket2.setSubject("Second Issue");
+        ticket2.setDescription("Second Description");
+        ticket2.setStatus(SupportTicket.TicketStatus.IN_PROGRESS);
+        ticket2.setUser(testUser);
+        ticket2.setCreatedAt(LocalDateTime.now());
+
+        when(ticketRepository.findAll()).thenReturn(Arrays.asList(testTicket, ticket2));
+
+        // When
+        List<SupportTicketDTO> result = ticketService.getAllTickets();
+
+        // Then
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getSubject()).isEqualTo("Test Issue");
+        assertThat(result.get(1).getSubject()).isEqualTo("Second Issue");
+    }
+
+    // ==================== GET TICKET BY ID TESTS ====================
 
     @Test
     void shouldGetTicketById() {
@@ -96,6 +136,51 @@ class SupportTicketServiceTest {
 
         verify(ticketRepository).findById(999L);
     }
+
+    // ==================== GET TICKETS BY USER ID TESTS ====================
+
+    @Test
+    void shouldGetTicketsByUserId() {
+        // Given
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(ticketRepository.findByUser(testUser)).thenReturn(Arrays.asList(testTicket));
+
+        // When
+        List<SupportTicketDTO> result = ticketService.getTicketsByUserId(1L);
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getUserId()).isEqualTo(1L);
+        verify(ticketRepository).findByUser(testUser);
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenUserHasNoTickets() {
+        // Given
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(ticketRepository.findByUser(testUser)).thenReturn(Collections.emptyList());
+
+        // When
+        List<SupportTicketDTO> result = ticketService.getTicketsByUserId(1L);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUserNotFoundForTickets() {
+        // Given
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> ticketService.getTicketsByUserId(999L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("999");
+
+        verify(ticketRepository, never()).findByUser(any());
+    }
+
+    // ==================== CREATE TICKET TESTS ====================
 
     @Test
     void shouldCreateTicket() {
@@ -129,6 +214,52 @@ class SupportTicketServiceTest {
     }
 
     @Test
+    void shouldSetCorrectSubjectAndDescriptionWhenCreating() {
+        // Given
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(ticketRepository.save(any(SupportTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        ticketService.createTicket(1L, "My Subject", "My Description");
+
+        // Then
+        verify(ticketRepository).save(argThat(ticket ->
+                "My Subject".equals(ticket.getSubject()) &&
+                        "My Description".equals(ticket.getDescription())
+        ));
+    }
+
+    @Test
+    void shouldAssignUserToTicketWhenCreating() {
+        // Given
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(ticketRepository.save(any(SupportTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        ticketService.createTicket(1L, "Subject", "Description");
+
+        // Then
+        verify(ticketRepository).save(argThat(ticket ->
+                ticket.getUser() != null && ticket.getUser().getId().equals(1L)
+        ));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCreatingTicketForNonExistentUser() {
+        // Given
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> ticketService.createTicket(999L, "Subject", "Description"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("999");
+
+        verify(ticketRepository, never()).save(any());
+    }
+
+    // ==================== UPDATE TICKET STATUS TESTS ====================
+
+    @Test
     void shouldUpdateTicketStatus() {
         // Given
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(testTicket));
@@ -148,19 +279,45 @@ class SupportTicketServiceTest {
     }
 
     @Test
-    void shouldGetTicketsByUserId() {
+    void shouldUpdateTicketStatusToInProgress() {
         // Given
-        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(ticketRepository.findByUser(testUser)).thenReturn(Arrays.asList(testTicket));
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(testTicket));
+        when(ticketRepository.save(any(SupportTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        List<SupportTicketDTO> result = ticketService.getTicketsByUserId(1L);
+        SupportTicketDTO result = ticketService.updateTicketStatus(1L, SupportTicket.TicketStatus.IN_PROGRESS);
 
         // Then
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getUserId()).isEqualTo(1L);
-        verify(ticketRepository).findByUser(testUser);
+        assertThat(result.getStatus()).isEqualTo("IN_PROGRESS");
     }
+
+    @Test
+    void shouldUpdateTicketStatusToClosed() {
+        // Given
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(testTicket));
+        when(ticketRepository.save(any(SupportTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        SupportTicketDTO result = ticketService.updateTicketStatus(1L, SupportTicket.TicketStatus.CLOSED);
+
+        // Then
+        assertThat(result.getStatus()).isEqualTo("CLOSED");
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpdatingStatusOfNonExistentTicket() {
+        // Given
+        when(ticketRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> ticketService.updateTicketStatus(999L, SupportTicket.TicketStatus.RESOLVED))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("999");
+
+        verify(ticketRepository, never()).save(any());
+    }
+
+    // ==================== DTO CONVERSION TESTS ====================
 
     @Test
     void shouldConvertTicketToDTO() {
@@ -177,5 +334,19 @@ class SupportTicketServiceTest {
         assertThat(dto.getStatus()).isEqualTo(testTicket.getStatus().name());
         assertThat(dto.getUserId()).isEqualTo(testTicket.getUser().getId());
         assertThat(dto.getUserEmail()).isEqualTo(testTicket.getUser().getEmail());
+    }
+
+    @Test
+    void shouldIncludeCreatedAtInDTO() {
+        // Given
+        LocalDateTime createdAt = LocalDateTime.of(2024, 1, 15, 10, 30);
+        testTicket.setCreatedAt(createdAt);
+        when(ticketRepository.findById(1L)).thenReturn(Optional.of(testTicket));
+
+        // When
+        SupportTicketDTO dto = ticketService.getTicketById(1L);
+
+        // Then
+        assertThat(dto.getCreatedAt()).isEqualTo(createdAt);
     }
 }
