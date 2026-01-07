@@ -23,6 +23,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
+
+import jakarta.validation.Valid;
 import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -153,13 +156,22 @@ public class AdminController {
         return "admin/user-form";
     }
 
-    // POST /admin/users/update/{id} - Update user (WITH AVATAR SUPPORT)
-    @PostMapping("/update/{id}")
+    @PostMapping("/users/update/{id}")
     public String updateUser(@PathVariable Long id,
-                             @ModelAttribute("user") UserDTO userDTO,
+                             @Valid @ModelAttribute("user") UserDTO userDTO,
+                             BindingResult bindingResult,
                              @RequestParam(value = "avatarFile", required = false) MultipartFile avatarFile,
                              RedirectAttributes redirectAttributes,
                              Model model) {
+
+        // Sprawdź błędy walidacji
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("error", "Validation failed. Please check your input.");
+            model.addAttribute("isEdit", true);
+            model.addAttribute("userId", id);
+            return "admin/user-form";
+        }
+
         try {
             User user = userRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("User not found"));

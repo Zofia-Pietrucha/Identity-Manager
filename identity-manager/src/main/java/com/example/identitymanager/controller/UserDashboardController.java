@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
 
 @Controller
 @RequestMapping("/user")
@@ -44,10 +46,25 @@ public class UserDashboardController {
 
     @PostMapping("/profile/update")
     public String updateProfile(Authentication authentication,
-                                UserUpdateDTO updateDTO,
+                                @Valid UserUpdateDTO updateDTO,
+                                BindingResult bindingResult,
                                 @RequestParam(value = "isPrivacyEnabled", defaultValue = "false") Boolean isPrivacyEnabled,
                                 @RequestParam(value = "avatar", required = false) MultipartFile avatar,
                                 RedirectAttributes redirectAttributes) {
+
+        // Sprawdź błędy walidacji
+        if (bindingResult.hasErrors()) {
+            StringBuilder errorMessage = new StringBuilder("Validation failed: ");
+            bindingResult.getFieldErrors().forEach(error ->
+                    errorMessage.append(error.getField())
+                            .append(" - ")
+                            .append(error.getDefaultMessage())
+                            .append("; ")
+            );
+            redirectAttributes.addFlashAttribute("error", errorMessage.toString());
+            return "redirect:/user/dashboard";
+        }
+
         String email = authentication.getName();
 
         // Get current user
