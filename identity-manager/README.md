@@ -28,6 +28,7 @@ Aplikacja webowa do zarządzania użytkownikami z panelem administracyjnym, REST
 - Obsługa błędów z GlobalExceptionHandler
 - Paginacja wyników
 - Wyszukiwanie i filtrowanie
+- Upload i zarządzanie avatarami użytkowników
 
 **Dostęp do danych**
 - Spring Data JPA z custom queries (JPQL)
@@ -49,7 +50,14 @@ Aplikacja webowa do zarządzania użytkownikami z panelem administracyjnym, REST
 - Export użytkowników do CSV
 - Zarządzanie zgłoszeniami wsparcia
 - Zmiana statusu zgłoszeń
+- Upload avatarów użytkowników
 - Flash messages dla feedbacku użytkownika
+
+**Dashboard Użytkownika**
+- Podgląd i edycja własnego profilu
+- Zmiana avatara
+- Ustawienia prywatności
+- Lista własnych zgłoszeń wsparcia
 
 ## Endpointy API
 
@@ -57,9 +65,9 @@ Aplikacja webowa do zarządzania użytkownikami z panelem administracyjnym, REST
 
 ```
 POST   /api/auth/login              Logowanie (zwraca dane użytkownika)
-GET    /api/me                      Pobierz dane zalogowanego użytkownika
-PUT    /api/me                      Aktualizuj profil
-PATCH  /api/me/privacy              Zmień ustawienia prywatności
+GET    /api/auth/me                 Pobierz dane zalogowanego użytkownika
+PUT    /api/auth/me                 Aktualizuj profil
+PATCH  /api/auth/me/privacy         Zmień ustawienia prywatności
 ```
 
 ### Users
@@ -77,6 +85,14 @@ PUT    /api/users/{id}              Aktualizuj dane użytkownika
 DELETE /api/users/{id}              Usuń użytkownika
 ```
 
+### User Avatars
+
+```
+POST   /api/users/{id}/avatar       Upload avatara
+GET    /api/users/{id}/avatar       Pobierz avatar
+DELETE /api/users/{id}/avatar       Usuń avatar
+```
+
 ### Support Tickets
 
 ```
@@ -85,16 +101,6 @@ POST   /api/tickets                 Utwórz nowe zgłoszenie
 GET    /api/tickets/{id}            Pobierz szczegóły zgłoszenia
 GET    /api/tickets/user/{userId}   Zgłoszenia konkretnego użytkownika
 PATCH  /api/tickets/{id}/status     Zmień status zgłoszenia
-```
-
-### JDBC Testing (demonstracja JdbcTemplate)
-
-```
-GET    /api/jdbc/users              SELECT via JDBC
-POST   /api/jdbc/users              INSERT via JDBC
-PUT    /api/jdbc/users/{id}         UPDATE via JDBC
-DELETE /api/jdbc/users/{id}         DELETE via JDBC
-GET    /api/jdbc/stats              COUNT via JDBC
 ```
 
 ### Validation Testing
@@ -172,6 +178,7 @@ Aplikacja będzie dostępna pod adresem: `http://localhost:8080`
 ### Dostęp do interfejsów
 
 - Panel administracyjny: `http://localhost:8080/admin/users`
+- Dashboard użytkownika: `http://localhost:8080/user/dashboard`
 - Dokumentacja API (Swagger UI): `http://localhost:8080/swagger-ui.html`
 - Konsola H2: `http://localhost:8080/h2-console`
 
@@ -201,6 +208,8 @@ Raport dostępny w: `target/site/jacoco/index.html`
 
 ### Pokrycie testów
 
+Aktualne pokrycie kodu: **~90%**
+
 - Repository layer: testy integracyjne z `@DataJpaTest`
 - Service layer: testy jednostkowe z Mockito
 - Controller layer: testy z MockMvc
@@ -217,10 +226,11 @@ src/main/java/com/example/identitymanager/
 ├── controller/
 │   ├── AuthController.java
 │   ├── UserController.java
+│   ├── UserDashboardController.java
 │   ├── SupportTicketController.java
 │   ├── AdminController.java
 │   ├── AdminTicketController.java
-│   ├── JdbcTestController.java
+│   ├── WebController.java
 │   └── ValidationTestController.java
 ├── dto/
 │   ├── UserDTO.java
@@ -249,25 +259,31 @@ src/main/java/com/example/identitymanager/
 ├── service/
 │   ├── UserService.java
 │   ├── CustomUserDetailsService.java
+│   ├── FileStorageService.java
 │   └── SupportTicketService.java
 └── IdentityManagerApplication.java
 
 src/main/resources/
-├── templates/admin/
-│   ├── users-list.html
-│   ├── user-form.html
-│   ├── import-csv.html
-│   ├── tickets-list.html
-│   └── ticket-detail.html
+├── templates/
+│   ├── admin/
+│   │   ├── users-list.html
+│   │   ├── user-form.html
+│   │   ├── import-csv.html
+│   │   ├── tickets-list.html
+│   │   └── ticket-detail.html
+│   ├── login.html
+│   ├── dashboard.html
+│   └── 403.html
 ├── application.yml
 └── schema.sql
 
-src/test/java/
-└── com/example/identitymanager/
-    ├── controller/
-    ├── service/
-    ├── repository/
-    └── dto/
+src/test/java/com/example/identitymanager/
+├── controller/
+├── service/
+├── repository/
+├── model/
+├── dto/
+└── exception/
 ```
 
 ## Kluczowe implementacje
@@ -377,7 +393,7 @@ curl -u john@example.com:password123 \
 
 ```bash
 curl -u john@example.com:password123 \
-  -X PUT http://localhost:8080/api/me \
+  -X PUT http://localhost:8080/api/auth/me \
   -H "Content-Type: application/json" \
   -d '{
     "firstName": "Jonathan",
@@ -386,11 +402,19 @@ curl -u john@example.com:password123 \
   }'
 ```
 
+### Upload avatara
+
+```bash
+curl -u john@example.com:password123 \
+  -X POST http://localhost:8080/api/users/2/avatar \
+  -F "file=@avatar.jpg"
+```
+
 ### Zmiana ustawień prywatności
 
 ```bash
 curl -u john@example.com:password123 \
-  -X PATCH http://localhost:8080/api/me/privacy \
+  -X PATCH http://localhost:8080/api/auth/me/privacy \
   -H "Content-Type: application/json" \
   -d '{
     "isPrivacyEnabled": true
@@ -444,8 +468,9 @@ Dokumentacja zawiera opisy wszystkich endpointów, parametrów, schematów DTO o
 - Global Exception Handler
 - Spring Security z BCrypt
 - Panel administracyjny (Thymeleaf)
+- Dashboard użytkownika
+- Upload avatarów (FileStorageService)
 - Import/Export CSV (OpenCSV)
 - Paginacja (JPA Pageable)
-- Testy jednostkowe i integracyjne
+- Testy jednostkowe i integracyjne (~90% coverage)
 - Dokumentacja API (Swagger)
-
