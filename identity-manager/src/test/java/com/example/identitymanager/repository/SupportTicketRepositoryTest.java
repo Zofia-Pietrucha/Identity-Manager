@@ -351,4 +351,134 @@ class SupportTicketRepositoryTest {
         // Then
         assertThat(saved.getCreatedAt()).isNotNull();
     }
+
+    @Test
+    void shouldFindByStatusWithUser() {
+        // Given
+        SupportTicket inProgressTicket = new SupportTicket();
+        inProgressTicket.setSubject("In Progress Issue");
+        inProgressTicket.setDescription("Description");
+        inProgressTicket.setStatus(SupportTicket.TicketStatus.IN_PROGRESS);
+        inProgressTicket.setUser(testUser);
+        entityManager.persistAndFlush(inProgressTicket);
+
+        // When
+        List<SupportTicket> result = ticketRepository.findByStatusWithUser(SupportTicket.TicketStatus.OPEN);
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getSubject()).isEqualTo("Test Issue");
+        assertThat(result.get(0).getUser()).isNotNull();
+        assertThat(result.get(0).getUser().getEmail()).isEqualTo("user@example.com");
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoTicketsWithStatusAndUser() {
+        // When
+        List<SupportTicket> result = ticketRepository.findByStatusWithUser(SupportTicket.TicketStatus.CLOSED);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldCountByUserIdAndStatus() {
+        // Given - create additional tickets
+        SupportTicket openTicket2 = new SupportTicket();
+        openTicket2.setSubject("Second Open Issue");
+        openTicket2.setDescription("Description");
+        openTicket2.setStatus(SupportTicket.TicketStatus.OPEN);
+        openTicket2.setUser(testUser);
+        entityManager.persist(openTicket2);
+
+        SupportTicket resolvedTicket = new SupportTicket();
+        resolvedTicket.setSubject("Resolved Issue");
+        resolvedTicket.setDescription("Description");
+        resolvedTicket.setStatus(SupportTicket.TicketStatus.RESOLVED);
+        resolvedTicket.setUser(testUser);
+        entityManager.persistAndFlush(resolvedTicket);
+
+        // When
+        long openCount = ticketRepository.countByUserIdAndStatus(testUser.getId(), SupportTicket.TicketStatus.OPEN);
+        long resolvedCount = ticketRepository.countByUserIdAndStatus(testUser.getId(), SupportTicket.TicketStatus.RESOLVED);
+        long closedCount = ticketRepository.countByUserIdAndStatus(testUser.getId(), SupportTicket.TicketStatus.CLOSED);
+
+        // Then
+        assertThat(openCount).isEqualTo(2); // testTicket + openTicket2
+        assertThat(resolvedCount).isEqualTo(1);
+        assertThat(closedCount).isEqualTo(0);
+    }
+
+    @Test
+    void shouldReturnZeroCountWhenUserHasNoTicketsWithStatus() {
+        // When
+        long count = ticketRepository.countByUserIdAndStatus(anotherUser.getId(), SupportTicket.TicketStatus.OPEN);
+
+        // Then
+        assertThat(count).isEqualTo(0);
+    }
+
+    @Test
+    void shouldFindAllWithUser() {
+        // Given - create ticket for another user
+        SupportTicket anotherTicket = new SupportTicket();
+        anotherTicket.setSubject("Another User Issue");
+        anotherTicket.setDescription("Description");
+        anotherTicket.setStatus(SupportTicket.TicketStatus.OPEN);
+        anotherTicket.setUser(anotherUser);
+        entityManager.persistAndFlush(anotherTicket);
+
+        // When
+        List<SupportTicket> result = ticketRepository.findAllWithUser();
+
+        // Then
+        assertThat(result).hasSize(2);
+        assertThat(result).allMatch(t -> t.getUser() != null);
+    }
+
+    @Test
+    void shouldSearchBySubject() {
+        // Given
+        SupportTicket loginTicket = new SupportTicket();
+        loginTicket.setSubject("Login Problem");
+        loginTicket.setDescription("Cannot login");
+        loginTicket.setStatus(SupportTicket.TicketStatus.OPEN);
+        loginTicket.setUser(testUser);
+        entityManager.persistAndFlush(loginTicket);
+
+        // When
+        List<SupportTicket> result = ticketRepository.searchBySubject("Login");
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getSubject()).isEqualTo("Login Problem");
+    }
+
+    @Test
+    void shouldSearchBySubjectCaseInsensitive() {
+        // When - search with different case
+        List<SupportTicket> result = ticketRepository.searchBySubject("test");
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getSubject()).isEqualTo("Test Issue");
+    }
+
+    @Test
+    void shouldSearchBySubjectPartialMatch() {
+        // When - search with partial match
+        List<SupportTicket> result = ticketRepository.searchBySubject("Issue");
+
+        // Then
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenSearchBySubjectNoMatch() {
+        // When
+        List<SupportTicket> result = ticketRepository.searchBySubject("NonExistent");
+
+        // Then
+        assertThat(result).isEmpty();
+    }
 }
