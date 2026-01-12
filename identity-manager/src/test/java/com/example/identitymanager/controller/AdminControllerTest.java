@@ -299,9 +299,9 @@ class AdminControllerTest {
 
     @Test
     void shouldDeleteUser() throws Exception {
-        // Given - controller uses userDao.executeUpdate(), NOT userRepository.delete()
+        // Given - controller delegates to userService.deleteUserWithRelatedData()
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        doNothing().when(userDao).executeUpdate(anyString(), anyLong());
+        doNothing().when(userService).deleteUserWithRelatedData(1L);
 
         // When & Then
         mockMvc.perform(get("/admin/users/delete/1").with(csrf()))
@@ -309,8 +309,8 @@ class AdminControllerTest {
                 .andExpect(redirectedUrl("/admin/users"))
                 .andExpect(flash().attributeExists("success"));
 
-        // Verify JDBC deletions were called (tickets, roles, user)
-        verify(userDao, times(3)).executeUpdate(anyString(), eq(1L));
+        // Verify service method was called
+        verify(userService).deleteUserWithRelatedData(1L);
     }
 
     @Test
@@ -319,7 +319,7 @@ class AdminControllerTest {
         testUser.setAvatarFilename("avatar.jpg");
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         doNothing().when(fileStorageService).deleteFile(anyString());
-        doNothing().when(userDao).executeUpdate(anyString(), anyLong());
+        doNothing().when(userService).deleteUserWithRelatedData(1L);
 
         // When & Then
         mockMvc.perform(get("/admin/users/delete/1").with(csrf()))
@@ -328,13 +328,14 @@ class AdminControllerTest {
                 .andExpect(flash().attributeExists("success"));
 
         verify(fileStorageService).deleteFile("avatar.jpg");
+        verify(userService).deleteUserWithRelatedData(1L);
     }
 
     @Test
     void shouldHandleErrorWhenDeletingUser() throws Exception {
-        // Given - exception during deletion
+        // Given
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        doThrow(new RuntimeException("Database error")).when(userDao).executeUpdate(anyString(), anyLong());
+        doThrow(new RuntimeException("Database error")).when(userService).deleteUserWithRelatedData(1L);
 
         // When & Then
         mockMvc.perform(get("/admin/users/delete/1").with(csrf()))

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import com.example.identitymanager.repository.SupportTicketRepository;
 
 @Service
 @Transactional
@@ -27,11 +28,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SupportTicketRepository supportTicketRepository;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, RoleRepository roleRepository,
+                       PasswordEncoder passwordEncoder, SupportTicketRepository supportTicketRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.supportTicketRepository = supportTicketRepository;
     }
 
     // Create new user
@@ -201,5 +205,22 @@ public class UserService {
     @Transactional
     public User createUserWithEncodedPassword(User user) {
         return userRepository.save(user);
+    }
+
+    // Delete user with all related data (tickets, roles)
+    @Transactional
+    public void deleteUserWithRelatedData(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // Delete user's support tickets first
+        supportTicketRepository.deleteAll(supportTicketRepository.findByUser(user));
+
+        // Clear user's roles (removes entries from user_roles table)
+        user.getRoles().clear();
+        userRepository.save(user);
+
+        // Delete the user
+        userRepository.delete(user);
     }
 }
