@@ -28,6 +28,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.any;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -91,6 +94,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.tokenType", is("Bearer")))
                 .andExpect(jsonPath("$.expiresIn", is(3600)))
                 .andExpect(jsonPath("$.user.email", is("authenticated@example.com")));
+
+        verify(authenticationManager).authenticate(any());
+        verify(userService).getUserByEmail("authenticated@example.com");
     }
 
     @Test
@@ -112,6 +118,8 @@ class AuthControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status", is("error")))
                 .andExpect(jsonPath("$.message", is("Invalid email or password")));
+
+        verify(authenticationManager).authenticate(any());
     }
 
     @Test
@@ -126,6 +134,8 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email", is("authenticated@example.com")))
                 .andExpect(jsonPath("$.firstName", is("Auth")));
+
+        verify(userService).getUserByEmail("authenticated@example.com");
     }
 
     @Test
@@ -134,5 +144,7 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("No authenticated user found"));
+
+        verify(userService, never()).getUserByEmail(any());
     }
 }

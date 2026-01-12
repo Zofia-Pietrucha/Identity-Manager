@@ -238,6 +238,8 @@ class UserServiceTest {
         // Then
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isEqualTo(0);
+
+        verify(userRepository).findAll(pageable);
     }
 
     // ==================== SEARCH USERS TESTS ====================
@@ -270,6 +272,7 @@ class UserServiceTest {
 
         // Then
         assertThat(result.getContent()).isEmpty();
+        verify(userRepository).searchUsers("nonexistent", pageable);
     }
 
     // ==================== GET USERS BY ROLE TESTS ====================
@@ -336,6 +339,7 @@ class UserServiceTest {
 
         // Then
         assertThat(result).isEqualTo(0L);
+        verify(userRepository).countUsersWithPrivacyEnabled();
     }
 
     // ==================== SEARCH USERS BY NAME TESTS ====================
@@ -366,6 +370,7 @@ class UserServiceTest {
 
         // Then
         assertThat(result).isEmpty();
+        verify(userRepository).searchUsersByName("NonExistent");
     }
 
     // ==================== GET USER BY ID TESTS ====================
@@ -424,6 +429,7 @@ class UserServiceTest {
 
         // Then
         assertThat(result).isEmpty();
+        verify(userRepository).findByEmail("notfound@example.com");
     }
 
     // ==================== UPDATE USER PROFILE TESTS ====================

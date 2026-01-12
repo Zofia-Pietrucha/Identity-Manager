@@ -17,6 +17,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {
@@ -61,6 +62,8 @@ class CustomUserDetailsServiceTest {
         assertThat(userDetails.getAuthorities())
                 .extracting("authority")
                 .containsExactly("ROLE_USER");
+
+        verify(userRepository).findByEmail("test@example.com");
     }
 
     @Test
@@ -73,6 +76,8 @@ class CustomUserDetailsServiceTest {
         assertThatThrownBy(() -> userDetailsService.loadUserByUsername("notfound@example.com"))
                 .isInstanceOf(UsernameNotFoundException.class)
                 .hasMessageContaining("notfound@example.com");
+
+        verify(userRepository).findByEmail("notfound@example.com");
     }
 
     @Test
@@ -94,5 +99,7 @@ class CustomUserDetailsServiceTest {
         assertThat(userDetails.getAuthorities())
                 .extracting("authority")
                 .containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
+
+        verify(userRepository).findByEmail("admin@example.com");
     }
 }

@@ -105,6 +105,8 @@ class SupportTicketServiceTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getSubject()).isEqualTo("Test Issue");
         assertThat(result.get(1).getSubject()).isEqualTo("Second Issue");
+
+        verify(ticketRepository).findAll();
     }
 
     // ==================== GET TICKET BY ID TESTS ====================
@@ -165,6 +167,8 @@ class SupportTicketServiceTest {
 
         // Then
         assertThat(result).isEmpty();
+        verify(userRepository).findById(1L);
+        verify(ticketRepository).findByUser(testUser);
     }
 
     @Test
@@ -289,6 +293,8 @@ class SupportTicketServiceTest {
 
         // Then
         assertThat(result.getStatus()).isEqualTo("IN_PROGRESS");
+        verify(ticketRepository).findById(1L);
+        verify(ticketRepository).save(any(SupportTicket.class));
     }
 
     @Test
@@ -302,6 +308,8 @@ class SupportTicketServiceTest {
 
         // Then
         assertThat(result.getStatus()).isEqualTo("CLOSED");
+        verify(ticketRepository).findById(1L);
+        verify(ticketRepository).save(any(SupportTicket.class));
     }
 
     @Test
@@ -334,6 +342,8 @@ class SupportTicketServiceTest {
         assertThat(dto.getStatus()).isEqualTo(testTicket.getStatus().name());
         assertThat(dto.getUserId()).isEqualTo(testTicket.getUser().getId());
         assertThat(dto.getUserEmail()).isEqualTo(testTicket.getUser().getEmail());
+
+        verify(ticketRepository).findById(1L);
     }
 
     @Test
@@ -348,5 +358,6 @@ class SupportTicketServiceTest {
 
         // Then
         assertThat(dto.getCreatedAt()).isEqualTo(createdAt);
+        verify(ticketRepository).findById(1L);
     }
 }
