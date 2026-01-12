@@ -6,6 +6,9 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.example.identitymanager.validation.ValidName;
+import com.example.identitymanager.validation.ValidPhone;
+
 
 @Data
 @NoArgsConstructor
@@ -21,11 +24,14 @@ public class UserRegistrationDTO {
     private String password;
 
     @NotBlank(message = "First name is required")
+    @ValidName
     private String firstName;
 
     @NotBlank(message = "Last name is required")
+    @ValidName
     private String lastName;
 
+    @ValidPhone
     private String phone;
 
     private Boolean isPrivacyEnabled = false;
