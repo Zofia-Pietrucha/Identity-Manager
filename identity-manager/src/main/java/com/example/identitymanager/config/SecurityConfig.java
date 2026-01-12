@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -27,7 +29,7 @@ public class SecurityConfig {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // ŁAŃCUCH 1: REST API (Stateless - HTTP Basic)
+    // ŁAŃCUCH 1: REST API (Stateless - HTTP Basic Auth ONLY)
     @Bean
     @Order(1)
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
@@ -37,32 +39,41 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users").permitAll()  // Registration endpoint
-                        .requestMatchers("/api/auth/login").permitAll()  // Login endpoint
-                        .requestMatchers("/api/auth/me").authenticated()
-                        .requestMatchers("/api/auth/me/privacy").authenticated()
-                        .requestMatchers("/api/tickets/**").authenticated()
-                        .requestMatchers("/api/validation/**").permitAll()  // Validation test endpoint
-                        .requestMatchers("/api/users/*/avatar").permitAll()  // ADDED: Allow public access to avatars for display
+                        .requestMatchers("/api/users", "/api/auth/login").permitAll()
                         .anyRequest().authenticated()
                 )
-                .httpBasic(httpBasic -> {});
+                .httpBasic(basic -> basic
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setContentType("application/json");
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
+                        })
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setContentType("application/json");
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Authentication required\"}");
+                        })
+                );
 
         return http.build();
     }
 
-    // ŁAŃCUCH 2: MVC / Przeglądarka (Stateful)
+    // ŁAŃCUCH 2: MVC / Przeglądarka (Stateful - Form Login)
     @Bean
-    @Order(2)
+    @Order(2)  // ZMIANA: dodany explicit @Order(2)
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
-                // CSRF WŁĄCZONY dla formularzy HTML, z wyjątkiem H2 Console
+                .securityMatcher("/**")  // ZMIANA: explicit matcher dla wszystkiego poza /api/**
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers("/h2-console/**"))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/h2-console/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/login", "/h2-console/**",
+                                "/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**", "/v3/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
