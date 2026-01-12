@@ -156,7 +156,7 @@ public class AdminController {
         return "admin/user-form";
     }
 
-    @PostMapping("/users/update/{id}")
+    @PostMapping("/update/{id}")
     public String updateUser(@PathVariable Long id,
                              @Valid @ModelAttribute("user") UserDTO userDTO,
                              BindingResult bindingResult,

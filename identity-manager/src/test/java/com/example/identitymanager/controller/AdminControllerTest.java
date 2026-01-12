@@ -238,7 +238,7 @@ class AdminControllerTest {
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
         // When & Then - NOTE: endpoint path has /users/update not just /update
-        mockMvc.perform(post("/admin/users/users/update/1")
+        mockMvc.perform(post("/admin/users/update/1")
                         .with(csrf())
                         .param("firstName", "Updated")
                         .param("lastName", "Name")
@@ -266,7 +266,7 @@ class AdminControllerTest {
         );
 
         // When & Then
-        mockMvc.perform(multipart("/admin/users/users/update/1")
+        mockMvc.perform(multipart("/admin/users/update/1")
                         .file(avatarFile)
                         .with(csrf())
                         .param("firstName", "Updated")
@@ -284,7 +284,7 @@ class AdminControllerTest {
         when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         // When & Then
-        mockMvc.perform(post("/admin/users/users/update/999")
+        mockMvc.perform(post("/admin/users/update/999")
                         .with(csrf())
                         .param("firstName", "Test")
                         .param("lastName", "User"))
