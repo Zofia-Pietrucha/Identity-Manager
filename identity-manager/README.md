@@ -40,6 +40,7 @@ Aplikacja webowa do zarzadzania uzytkownikami z panelem administracyjnym, REST A
 - Hashowanie hasel algorytmem BCrypt
 - Ochrona CSRF dla widokow HTML
 - Stateless API (SessionCreationPolicy.STATELESS)
+- Kontrola dostepu do ticketow - USER widzi tylko swoje, ADMIN wszystkie
 
 ### Frontend
 
@@ -48,7 +49,8 @@ Aplikacja webowa do zarzadzania uzytkownikami z panelem administracyjnym, REST A
 - Paginacja manualna
 - Import uzytkownikow z plikow CSV
 - Export uzytkownikow do CSV
-- Zarzadzanie zgloszeniami wsparcia
+- Zarzadzanie zgloszeniami wsparcia (lista, tworzenie, usuwanie)
+- Tworzenie ticketow na dowolnego uzytkownika
 - Zmiana statusu zgloszen
 - Upload awatarow uzytkownikow
 - Flash messages dla feedbacku uzytkownika
@@ -58,6 +60,7 @@ Aplikacja webowa do zarzadzania uzytkownikami z panelem administracyjnym, REST A
 - Zmiana avatara
 - Ustawienia prywatnosci
 - Lista wlasnych zgloszen wsparcia
+- Tworzenie nowych zgloszen wsparcia
 
 ## Endpointy API
 
@@ -92,17 +95,30 @@ DELETE /api/users/{id}/avatar       Usun avatar
 
 ### Support Tickets
 ```
-GET    /api/tickets                 Lista wszystkich zgloszen
-POST   /api/tickets                 Utworz nowe zgloszenie
-GET    /api/tickets/{id}            Pobierz szczegoly zgloszenia
-GET    /api/tickets/user/{userId}   Zgloszenia konkretnego uzytkownika
-PATCH  /api/tickets/{id}/status     Zmien status zgloszenia
+GET    /api/tickets                 Lista zgloszen (USER: tylko swoje, ADMIN: wszystkie)
+GET    /api/tickets/my              Lista zgloszen zalogowanego uzytkownika
+GET    /api/tickets/{id}            Pobierz szczegoly zgloszenia (USER: tylko swoje)
+GET    /api/tickets/user/{userId}   Zgloszenia konkretnego uzytkownika (tylko ADMIN)
+POST   /api/tickets                 Utworz zgloszenie (automatycznie dla zalogowanego usera)
+POST   /api/tickets/admin           Utworz zgloszenie dla dowolnego usera (tylko ADMIN)
+PATCH  /api/tickets/{id}/status     Zmien status zgloszenia (tylko ADMIN)
 ```
 
 ### Validation Testing
 ```
 POST   /api/validation/test         Test walidacji DTO
 ```
+
+## Uprawnienia do ticketow
+
+| Operacja | USER | ADMIN |
+|----------|------|-------|
+| Zobacz swoje tickety | ✓ | ✓ |
+| Zobacz wszystkie tickety | ✗ | ✓ |
+| Utworz ticket na siebie | ✓ | ✓ |
+| Utworz ticket na kogos | ✗ | ✓ |
+| Zmien status ticketu | ✗ | ✓ |
+| Usun ticket | ✗ | ✓ |
 
 ## Konfiguracja bezpieczenstwa
 
@@ -171,6 +187,7 @@ Aplikacja bedzie dostepna pod adresem: `http://localhost:8080`
 ### Dostep do interfejsow
 
 - Panel administracyjny: `http://localhost:8080/admin/users`
+- Zarzadzanie ticketami (admin): `http://localhost:8080/admin/tickets`
 - Dashboard uzytkownika: `http://localhost:8080/user/dashboard`
 - Dokumentacja API (Swagger UI): `http://localhost:8080/swagger-ui.html`
 - Konsola H2: `http://localhost:8080/h2-console`
@@ -231,6 +248,7 @@ src/main/java/com/example/identitymanager/
 │   ├── LoginResponse.java
 │   ├── SupportTicketDTO.java
 │   ├── CreateTicketRequest.java
+│   ├── CreateTicketRequestUser.java
 │   └── UpdateTicketStatusRequest.java
 ├── exception/
 │   ├── ResourceNotFoundException.java
@@ -267,8 +285,9 @@ src/main/resources/
 │   │   ├── import-csv.html
 │   │   ├── tickets-list.html
 │   │   └── ticket-detail.html
+│   ├── user/
+│   │   └── dashboard.html
 │   ├── login.html
-│   ├── dashboard.html
 │   └── 403.html
 ├── application.yml
 └── schema.sql
@@ -406,15 +425,48 @@ curl -u john@example.com:password123 \
   http://localhost:8080/api/users
 ```
 
-### Utworzenie zgloszenia wsparcia
+### Utworzenie zgloszenia wsparcia (jako USER - automatycznie na siebie)
 ```bash
 curl -u john@example.com:password123 \
   -X POST http://localhost:8080/api/tickets \
   -H "Content-Type: application/json" \
   -d '{
-    "userId": 2,
     "subject": "Problem z aplikacja",
     "description": "Szczegolowy opis problemu"
+  }'
+```
+
+### Utworzenie zgloszenia dla innego uzytkownika (tylko ADMIN)
+```bash
+curl -u admin@example.com:password123 \
+  -X POST http://localhost:8080/api/tickets/admin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 2,
+    "subject": "Problem zgloszony przez admina",
+    "description": "Szczegolowy opis problemu"
+  }'
+```
+
+### Pobranie swoich zgloszen
+```bash
+curl -u john@example.com:password123 \
+  http://localhost:8080/api/tickets/my
+```
+
+### Pobranie wszystkich zgloszen (tylko ADMIN)
+```bash
+curl -u admin@example.com:password123 \
+  http://localhost:8080/api/tickets
+```
+
+### Zmiana statusu zgloszenia (tylko ADMIN)
+```bash
+curl -u admin@example.com:password123 \
+  -X PATCH http://localhost:8080/api/tickets/1/status \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "RESOLVED"
   }'
 ```
 
@@ -495,10 +547,10 @@ Swagger UI obsluguje autentykacje HTTP Basic - kliknij przycisk "Authorize" i wp
 - Spring Security z BCrypt
 - Dual filter chain (API stateless, MVC stateful)
 - Panel administracyjny (Thymeleaf)
-- Dashboard uzytkownika
+- Dashboard uzytkownika z obsluga ticketow
 - Upload awatarow (FileStorageService)
 - Import/Export CSV (OpenCSV)
 - Paginacja (JPA Pageable)
-- Testy jednostkowe i integracyjne (~91% coverage)
+- Kontrola dostepu do ticketow (USER vs ADMIN)
+- Testy jednostkowe i integracyjne (~89% coverage)
 - Dokumentacja API (Swagger z autentykacja)
-

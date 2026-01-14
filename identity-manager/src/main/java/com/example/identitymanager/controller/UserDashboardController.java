@@ -1,21 +1,24 @@
 package com.example.identitymanager.controller;
 
+import com.example.identitymanager.dto.SupportTicketDTO;
 import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.dto.UserUpdateDTO;
 import com.example.identitymanager.service.FileStorageService;
-import org.springframework.web.multipart.MultipartFile;
+import com.example.identitymanager.service.SupportTicketService;
 import com.example.identitymanager.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import jakarta.validation.Valid;
-import org.springframework.validation.BindingResult;
+
+import java.util.List;
 
 @Controller
 @RequestMapping("/user")
@@ -23,10 +26,14 @@ public class UserDashboardController {
 
     private final UserService userService;
     private final FileStorageService fileStorageService;
+    private final SupportTicketService ticketService;
 
-    public UserDashboardController(UserService userService, FileStorageService fileStorageService) {
+    public UserDashboardController(UserService userService,
+                                   FileStorageService fileStorageService,
+                                   SupportTicketService ticketService) {
         this.userService = userService;
         this.fileStorageService = fileStorageService;
+        this.ticketService = ticketService;
     }
 
     @GetMapping("/dashboard")
@@ -40,7 +47,11 @@ public class UserDashboardController {
             user.setAvatarUrl("/api/users/" + user.getId() + "/avatar");
         }
 
+        // Pobierz tickety użytkownika
+        List<SupportTicketDTO> tickets = ticketService.getTicketsByUserEmail(email);
+
         model.addAttribute("user", user);
+        model.addAttribute("tickets", tickets);
         return "user/dashboard";
     }
 
@@ -121,6 +132,35 @@ public class UserDashboardController {
             } catch (Exception e) {
                 redirectAttributes.addFlashAttribute("error", "Failed to delete avatar: " + e.getMessage());
             }
+        }
+
+        return "redirect:/user/dashboard";
+    }
+
+    // POST /user/tickets - Create new ticket
+    @PostMapping("/tickets")
+    public String createTicket(Authentication authentication,
+                               @RequestParam("subject") String subject,
+                               @RequestParam("description") String description,
+                               RedirectAttributes redirectAttributes) {
+
+        String email = authentication.getName();
+
+        // Walidacja
+        if (subject == null || subject.trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("ticketError", "Subject is required");
+            return "redirect:/user/dashboard";
+        }
+        if (description == null || description.trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("ticketError", "Description is required");
+            return "redirect:/user/dashboard";
+        }
+
+        try {
+            ticketService.createTicketForCurrentUser(email, subject.trim(), description.trim());
+            redirectAttributes.addFlashAttribute("ticketSuccess", "Ticket created successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("ticketError", "Failed to create ticket: " + e.getMessage());
         }
 
         return "redirect:/user/dashboard";

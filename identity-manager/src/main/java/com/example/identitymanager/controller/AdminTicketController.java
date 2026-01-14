@@ -1,8 +1,10 @@
 package com.example.identitymanager.controller;
 
 import com.example.identitymanager.dto.SupportTicketDTO;
+import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.model.SupportTicket;
 import com.example.identitymanager.service.SupportTicketService;
+import com.example.identitymanager.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -15,16 +17,20 @@ import java.util.List;
 public class AdminTicketController {
 
     private final SupportTicketService ticketService;
+    private final UserService userService;
 
-    public AdminTicketController(SupportTicketService ticketService) {
+    public AdminTicketController(SupportTicketService ticketService, UserService userService) {
         this.ticketService = ticketService;
+        this.userService = userService;
     }
 
     // GET /admin/tickets - List all support tickets
     @GetMapping
     public String listTickets(Model model) {
         List<SupportTicketDTO> tickets = ticketService.getAllTickets();
+        List<UserDTO> users = userService.getAllUsers();
         model.addAttribute("tickets", tickets);
+        model.addAttribute("users", users);
         return "admin/tickets-list";
     }
 
@@ -39,6 +45,33 @@ public class AdminTicketController {
             redirectAttributes.addFlashAttribute("error", "Ticket not found: " + e.getMessage());
             return "redirect:/admin/tickets";
         }
+    }
+
+    // POST /admin/tickets - Create new ticket (admin can assign to any user)
+    @PostMapping
+    public String createTicket(@RequestParam("userId") Long userId,
+                               @RequestParam("subject") String subject,
+                               @RequestParam("description") String description,
+                               RedirectAttributes redirectAttributes) {
+
+        // Walidacja
+        if (subject == null || subject.trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Subject is required");
+            return "redirect:/admin/tickets";
+        }
+        if (description == null || description.trim().isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Description is required");
+            return "redirect:/admin/tickets";
+        }
+
+        try {
+            ticketService.createTicket(userId, subject.trim(), description.trim());
+            redirectAttributes.addFlashAttribute("success", "Ticket created successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Failed to create ticket: " + e.getMessage());
+        }
+
+        return "redirect:/admin/tickets";
     }
 
     // POST /admin/tickets/{id}/status - Update ticket status
@@ -57,5 +90,17 @@ public class AdminTicketController {
             redirectAttributes.addFlashAttribute("error", "Error updating ticket: " + e.getMessage());
         }
         return "redirect:/admin/tickets/" + id;
+    }
+
+    // GET /admin/tickets/{id}/delete - Delete ticket
+    @GetMapping("/{id}/delete")
+    public String deleteTicket(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            ticketService.deleteTicket(id);
+            redirectAttributes.addFlashAttribute("success", "Ticket deleted successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Failed to delete ticket: " + e.getMessage());
+        }
+        return "redirect:/admin/tickets";
     }
 }

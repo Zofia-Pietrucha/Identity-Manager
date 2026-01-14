@@ -360,4 +360,84 @@ class SupportTicketServiceTest {
         assertThat(dto.getCreatedAt()).isEqualTo(createdAt);
         verify(ticketRepository).findById(1L);
     }
+
+    // ==================== GET TICKETS BY USER EMAIL TESTS ====================
+
+    @Test
+    void shouldGetTicketsByUserEmail() {
+        // Given
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(ticketRepository.findByUser(testUser)).thenReturn(Arrays.asList(testTicket));
+
+        // When
+        List<SupportTicketDTO> result = ticketService.getTicketsByUserEmail("test@example.com");
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getSubject()).isEqualTo("Test Issue");
+        verify(userRepository).findByEmail("test@example.com");
+        verify(ticketRepository).findByUser(testUser);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUserEmailNotFound() {
+        // Given
+        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> ticketService.getTicketsByUserEmail("unknown@example.com"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("email");
+
+        verify(ticketRepository, never()).findByUser(any());
+    }
+
+    @Test
+    void shouldCreateTicketForCurrentUser() {
+        // Given
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(ticketRepository.save(any(SupportTicket.class))).thenReturn(testTicket);
+
+        // When
+        SupportTicketDTO result = ticketService.createTicketForCurrentUser(
+                "test@example.com", "New Subject", "New Description");
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getSubject()).isEqualTo("Test Issue");
+        verify(userRepository).findByEmail("test@example.com");
+        verify(ticketRepository).save(any(SupportTicket.class));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCreatingTicketForUnknownEmail() {
+        // Given
+        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> ticketService.createTicketForCurrentUser(
+                "unknown@example.com", "Subject", "Description"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("email");
+
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldSetCorrectDataWhenCreatingTicketForCurrentUser() {
+        // Given
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(ticketRepository.save(any(SupportTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        ticketService.createTicketForCurrentUser("test@example.com", "My Subject", "My Description");
+
+        // Then
+        verify(ticketRepository).save(argThat(ticket ->
+                "My Subject".equals(ticket.getSubject()) &&
+                        "My Description".equals(ticket.getDescription()) &&
+                        ticket.getStatus() == SupportTicket.TicketStatus.OPEN &&
+                        ticket.getUser().equals(testUser)
+        ));
+    }
 }

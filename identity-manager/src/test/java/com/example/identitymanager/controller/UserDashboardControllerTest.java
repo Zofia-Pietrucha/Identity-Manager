@@ -1,8 +1,10 @@
 package com.example.identitymanager.controller;
 
+import com.example.identitymanager.dto.SupportTicketDTO;
 import com.example.identitymanager.dto.UserDTO;
 import com.example.identitymanager.dto.UserUpdateDTO;
 import com.example.identitymanager.service.FileStorageService;
+import com.example.identitymanager.service.SupportTicketService;
 import com.example.identitymanager.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 
@@ -36,7 +40,14 @@ class UserDashboardControllerTest {
     @MockBean
     private FileStorageService fileStorageService;
 
+    @MockBean
+    private SupportTicketService ticketService;
+
+    @MockBean
+    private com.example.identitymanager.service.CustomUserDetailsService customUserDetailsService;
+
     private UserDTO testUserDTO;
+    private SupportTicketDTO testTicketDTO;
 
     @BeforeEach
     void setUp() {
@@ -53,20 +64,52 @@ class UserDashboardControllerTest {
                 null,
                 null
         );
+
+        testTicketDTO = new SupportTicketDTO(
+                1L,
+                "Test Issue",
+                "Test Description",
+                "OPEN",
+                1L,
+                "user@example.com",
+                LocalDateTime.now()
+        );
     }
+
+    // ==================== DASHBOARD TESTS ====================
 
     @Test
     void shouldShowDashboard() throws Exception {
         // Given
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(testUserDTO));
+        when(ticketService.getTicketsByUserEmail("user@example.com")).thenReturn(Collections.emptyList());
 
         // When & Then
         mockMvc.perform(get("/user/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("user/dashboard"))
-                .andExpect(model().attributeExists("user"));
+                .andExpect(model().attributeExists("user"))
+                .andExpect(model().attributeExists("tickets"));
 
         verify(userService).getUserByEmail("user@example.com");
+        verify(ticketService).getTicketsByUserEmail("user@example.com");
+    }
+
+    @Test
+    void shouldShowDashboardWithTickets() throws Exception {
+        // Given
+        when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(testUserDTO));
+        when(ticketService.getTicketsByUserEmail("user@example.com"))
+                .thenReturn(Arrays.asList(testTicketDTO));
+
+        // When & Then
+        mockMvc.perform(get("/user/dashboard"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("user/dashboard"))
+                .andExpect(model().attributeExists("user"))
+                .andExpect(model().attributeExists("tickets"));
+
+        verify(ticketService).getTicketsByUserEmail("user@example.com");
     }
 
     @Test
@@ -74,6 +117,7 @@ class UserDashboardControllerTest {
         // Given
         testUserDTO.setAvatarFilename("avatar.jpg");
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(testUserDTO));
+        when(ticketService.getTicketsByUserEmail("user@example.com")).thenReturn(Collections.emptyList());
 
         // When & Then
         mockMvc.perform(get("/user/dashboard"))
@@ -83,6 +127,8 @@ class UserDashboardControllerTest {
 
         verify(userService).getUserByEmail("user@example.com");
     }
+
+    // ==================== UPDATE PROFILE TESTS ====================
 
     @Test
     void shouldUpdateProfile() throws Exception {
@@ -135,7 +181,7 @@ class UserDashboardControllerTest {
     }
 
     @Test
-    void shouldReplaceExistingAvatar() throws Exception {
+    void shouldReplaceOldAvatarWhenUploadingNew() throws Exception {
         // Given
         testUserDTO.setAvatarFilename("old-avatar.jpg");
         MockMultipartFile avatarFile = new MockMultipartFile(
@@ -147,7 +193,6 @@ class UserDashboardControllerTest {
 
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(testUserDTO));
         when(fileStorageService.storeFile(any())).thenReturn("new-avatar.jpg");
-        doNothing().when(fileStorageService).deleteFile("old-avatar.jpg");
         when(userService.updateUserProfile(anyString(), any(UserUpdateDTO.class))).thenReturn(testUserDTO);
         when(userService.updatePrivacySettings(anyString(), anyBoolean())).thenReturn(testUserDTO);
 
@@ -156,31 +201,24 @@ class UserDashboardControllerTest {
                         .file(avatarFile)
                         .with(csrf())
                         .param("firstName", "Test")
-                        .param("lastName", "User"))
-                .andExpect(status().is3xxRedirection());
+                        .param("lastName", "User")
+                        .param("isPrivacyEnabled", "false"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/user/dashboard?success=true"));
 
         verify(fileStorageService).deleteFile("old-avatar.jpg");
         verify(fileStorageService).storeFile(any());
     }
 
     @Test
-    void shouldReturnErrorWhenAvatarUploadFails() throws Exception {
+    void shouldShowValidationErrorWhenFirstNameInvalid() throws Exception {
         // Given
-        MockMultipartFile avatarFile = new MockMultipartFile(
-                "avatar",
-                "avatar.jpg",
-                "image/jpeg",
-                "test image content".getBytes()
-        );
-
         when(userService.getUserByEmail("user@example.com")).thenReturn(Optional.of(testUserDTO));
-        when(fileStorageService.storeFile(any())).thenThrow(new RuntimeException("Upload failed"));
 
         // When & Then
         mockMvc.perform(multipart("/user/profile/update")
-                        .file(avatarFile)
                         .with(csrf())
-                        .param("firstName", "Test")
+                        .param("firstName", "")
                         .param("lastName", "User"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/user/dashboard"))
@@ -188,6 +226,8 @@ class UserDashboardControllerTest {
 
         verify(userService, never()).updateUserProfile(anyString(), any(UserUpdateDTO.class));
     }
+
+    // ==================== DELETE AVATAR TESTS ====================
 
     @Test
     void shouldDeleteAvatar() throws Exception {
@@ -231,5 +271,83 @@ class UserDashboardControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/user/dashboard"))
                 .andExpect(flash().attributeExists("error"));
+    }
+
+    // ==================== CREATE TICKET TESTS ====================
+
+    @Test
+    void shouldCreateTicket() throws Exception {
+        // Given
+        when(ticketService.createTicketForCurrentUser(eq("user@example.com"), eq("Test Subject"), eq("Test Description")))
+                .thenReturn(testTicketDTO);
+
+        // When & Then
+        mockMvc.perform(post("/user/tickets")
+                        .with(csrf())
+                        .param("subject", "Test Subject")
+                        .param("description", "Test Description"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/user/dashboard"))
+                .andExpect(flash().attributeExists("ticketSuccess"));
+
+        verify(ticketService).createTicketForCurrentUser("user@example.com", "Test Subject", "Test Description");
+    }
+
+    @Test
+    void shouldShowErrorWhenSubjectIsEmpty() throws Exception {
+        // When & Then
+        mockMvc.perform(post("/user/tickets")
+                        .with(csrf())
+                        .param("subject", "")
+                        .param("description", "Test Description"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/user/dashboard"))
+                .andExpect(flash().attributeExists("ticketError"));
+
+        verify(ticketService, never()).createTicketForCurrentUser(any(), any(), any());
+    }
+
+    @Test
+    void shouldShowErrorWhenDescriptionIsEmpty() throws Exception {
+        // When & Then
+        mockMvc.perform(post("/user/tickets")
+                        .with(csrf())
+                        .param("subject", "Test Subject")
+                        .param("description", ""))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/user/dashboard"))
+                .andExpect(flash().attributeExists("ticketError"));
+
+        verify(ticketService, never()).createTicketForCurrentUser(any(), any(), any());
+    }
+
+    @Test
+    void shouldShowErrorWhenSubjectIsOnlyWhitespace() throws Exception {
+        // When & Then
+        mockMvc.perform(post("/user/tickets")
+                        .with(csrf())
+                        .param("subject", "   ")
+                        .param("description", "Test Description"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/user/dashboard"))
+                .andExpect(flash().attributeExists("ticketError"));
+
+        verify(ticketService, never()).createTicketForCurrentUser(any(), any(), any());
+    }
+
+    @Test
+    void shouldShowErrorWhenTicketCreationFails() throws Exception {
+        // Given
+        when(ticketService.createTicketForCurrentUser(anyString(), anyString(), anyString()))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // When & Then
+        mockMvc.perform(post("/user/tickets")
+                        .with(csrf())
+                        .param("subject", "Test Subject")
+                        .param("description", "Test Description"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/user/dashboard"))
+                .andExpect(flash().attributeExists("ticketError"));
     }
 }

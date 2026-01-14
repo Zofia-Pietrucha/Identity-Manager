@@ -89,4 +89,37 @@ public class SupportTicketService {
                 ticket.getCreatedAt()
         );
     }
+
+    // Get tickets by user email (for current logged-in user)
+    @Transactional(readOnly = true)
+    public List<SupportTicketDTO> getTicketsByUserEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        return ticketRepository.findByUser(user).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Create ticket for current logged-in user (without userId in request)
+    public SupportTicketDTO createTicketForCurrentUser(String email, String subject, String description) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+
+        SupportTicket ticket = new SupportTicket();
+        ticket.setSubject(subject);
+        ticket.setDescription(description);
+        ticket.setStatus(SupportTicket.TicketStatus.OPEN);
+        ticket.setUser(user);
+
+        SupportTicket savedTicket = ticketRepository.save(ticket);
+        return convertToDTO(savedTicket);
+    }
+
+    // Delete ticket by ID
+    public void deleteTicket(Long id) {
+        SupportTicket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket", "id", id));
+        ticketRepository.delete(ticket);
+    }
 }
