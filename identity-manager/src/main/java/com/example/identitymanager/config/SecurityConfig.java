@@ -40,6 +40,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/users/*/avatar").permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(basic -> basic
