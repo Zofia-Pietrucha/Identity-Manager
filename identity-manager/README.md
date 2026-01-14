@@ -553,4 +553,4 @@ Swagger UI obsluguje autentykacje HTTP Basic - kliknij przycisk "Authorize" i wp
 - Paginacja (JPA Pageable)
 - Kontrola dostepu do ticketow (USER vs ADMIN)
 - Testy jednostkowe i integracyjne (~89% coverage)
-- Dokumentacja API (Swagger z autentykacja)
+- Dokumentacja API (Swagger z autentykacja)`
